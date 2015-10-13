@@ -491,65 +491,65 @@ def rangeQuery(zScores, regions, tree, center, radius, stats, depth):
 	stats.decreaseLevel()
 	return result
 
-def nearestNeighbors(zScores, regions, tree, center, maxRadius, count, stats, depth):
-	stats.increaseLevel()
+# def nearestNeighbors(zScores, regions, tree, center, maxRadius, count, stats, depth):
+# 	stats.increaseLevel()
 
-	alt = False
-	if not tree.doesContainPoint(center):
-		alt = True
-		stats.alternateCount += 1
-		stats.alternateDepth += depth
+# 	alt = False
+# 	if not tree.doesContainPoint(center):
+# 		alt = True
+# 		stats.alternateCount += 1
+# 		stats.alternateDepth += depth
 
-	if isinstance(tree, LeafNode):
-		stats.pointsChecked += len(tree.pyroIDs)
-		stats.leavesChecked += 1
+# 	if isinstance(tree, LeafNode):
+# 		stats.pointsChecked += len(tree.pyroIDs)
+# 		stats.leavesChecked += 1
 
-		result = sorted([(pointDist(regions, center, zScores[pyroID]), pyroID) for pyroID in tree.pyroIDs], key=itemgetter(0))
-		result = [(dist, pyroID) for dist, pyroID in result if dist <= maxRadius]
+# 		result = sorted([(pointDist(regions, center, zScores[pyroID]), pyroID) for pyroID in tree.pyroIDs], key=itemgetter(0))
+# 		result = [(dist, pyroID) for dist, pyroID in result if dist <= maxRadius]
 
-		# result = sorted(tree.pyroIDs, key=lambda pyroID: pointDist(regions, center, zScores[pyroID]))[:count]
-		# result = list(filter(lambda pyroID: pointDist(regions, center, zScores[pyroID]) <= maxRadius, result))
+# 		# result = sorted(tree.pyroIDs, key=lambda pyroID: pointDist(regions, center, zScores[pyroID]))[:count]
+# 		# result = list(filter(lambda pyroID: pointDist(regions, center, zScores[pyroID]) <= maxRadius, result))
 
-		if len(result) > 0:
-			stats.leavesUsed += 1
-	else:
-		stats.innerChecked += 1
-		stats.levelStats[stats.level].inner += 1
+# 		if len(result) > 0:
+# 			stats.leavesUsed += 1
+# 	else:
+# 		stats.innerChecked += 1
+# 		stats.levelStats[stats.level].inner += 1
 
-		result = []
-		bestRadius = maxRadius
-		distSortedChildren = tree.getDistSortedChildren(center, stats)
-		i = 0
-		for dist, child in distSortedChildren:
-			if dist >= bestRadius:
-				break
+# 		result = []
+# 		bestRadius = maxRadius
+# 		distSortedChildren = tree.getDistSortedChildren(center, stats)
+# 		i = 0
+# 		for dist, child in distSortedChildren:
+# 			if dist >= bestRadius:
+# 				break
 
-			i += 1
-			# result = sorted(result + nearestNeighbors(zScores, regions, child, center, bestRadius, count, stats, depth+1), key=lambda pyroID: pointDist(regions, center, zScores[pyroID]))[:count]
-			result += nearestNeighbors(zScores, regions, child, center, bestRadius, count, stats, depth+1)
-			result = sorted(result, key=itemgetter(0))[:count]
-			# if len(result) == count and pointDist(regions, center, zScores[result[-1]]) < bestRadius:
-				# bestRadius = pointDist(regions, center, zScores[result[-1]])
-			if len(result) == count and result[-1][0] < bestRadius:
-				bestRadius = result[-1][0]
+# 			i += 1
+# 			# result = sorted(result + nearestNeighbors(zScores, regions, child, center, bestRadius, count, stats, depth+1), key=lambda pyroID: pointDist(regions, center, zScores[pyroID]))[:count]
+# 			result += nearestNeighbors(zScores, regions, child, center, bestRadius, count, stats, depth+1)
+# 			result = sorted(result, key=itemgetter(0))[:count]
+# 			# if len(result) == count and pointDist(regions, center, zScores[result[-1]]) < bestRadius:
+# 				# bestRadius = pointDist(regions, center, zScores[result[-1]])
+# 			if len(result) == count and result[-1][0] < bestRadius:
+# 				bestRadius = result[-1][0]
 
-		# result = list(filter(lambda pyroID: pointDist(regions, center, zScores[pyroID]) <= maxRadius, result))
-		result = [(dist, pyroID) for dist, pyroID in result if dist <= maxRadius]
+# 		# result = list(filter(lambda pyroID: pointDist(regions, center, zScores[pyroID]) <= maxRadius, result))
+# 		result = [(dist, pyroID) for dist, pyroID in result if dist <= maxRadius]
 
-		stats.branchPerInner += i
-		stats.levelStats[stats.level].branches += i
-		if alt and i == 0:
-			stats.altDeaths += 1
-			stats.altDeathDepth += depth
+# 		stats.branchPerInner += i
+# 		stats.levelStats[stats.level].branches += i
+# 		if alt and i == 0:
+# 			stats.altDeaths += 1
+# 			stats.altDeathDepth += depth
 
-		if len(result) > 0:
-			stats.innerUsed += 1
+# 		if len(result) > 0:
+# 			stats.innerUsed += 1
 
-	if len(result) == 0:
-		stats.extraNodes += 1
+# 	if len(result) == 0:
+# 		stats.extraNodes += 1
 
-	stats.decreaseLevel()
-	return result
+# 	stats.decreaseLevel()
+# 	return result
 
 
 def loadZScores():
@@ -571,8 +571,8 @@ def makeTrees(zScores, regions):
 	return trees
 
 def loadCorrect(radius):
-	with open("correctN100R{}.pickle".format(radius), mode='r+b') as correctFile:
-		correctNearest = pickle.load(correctFile)
+	# with open("correctN100R{}.pickle".format(radius), mode='r+b') as correctFile:
+	# 	correctNearest = pickle.load(correctFile)
 	with open("correctR{}.pickle".format(radius), mode='r+b') as correctFile:
 		correctRange = pickle.load(correctFile)
 	return correctNearest, correctRange
@@ -592,41 +592,41 @@ def test(zScores, trees, correctNearest, correctRange, regions, radius, nearestC
 		print("inner, leaf nodes: {}".format(countNodes(tree)))
 		print("min, max depth: {}".format(getMinMaxDepth(tree, 0)))
 
-		nearestStats = QueryStats()
+		# nearestStats = QueryStats()
 		rangeStats = QueryStats()
 
 		for i, pyroID in enumerate(queryIDs):
 			print("{}/{}".format(i, len(queryIDs)))
-			resultN = set(nearestNeighbors(zScores, regions, tree, zScores[pyroID], radius, nearestCount, nearestStats, 0))
+			# resultN = set(nearestNeighbors(zScores, regions, tree, zScores[pyroID], radius, nearestCount, nearestStats, 0))
 			# correctN = set(correctNearest[pyroID][:nearestCount])
 			# if resultN == correctN:
 			# 	nearestStats.correct += 1
 			# else:
 			# 	print("\n\tN {} --- {} / {} : {} / {}".format(pyroID, len(resultN - correctN), len(resultN), len(correctN - resultN), len(correctN)))
 				# print("{} ----- {}".format({(pID, pointDist(regions, zScores[pyroID], zScores[pID])) for pID in resultN - correctN}, {(pID, pointDist(regions, zScores[pyroID], zScores[pID])) for pID in correctN - resultN}))
-			nearestStats.returnCount += len(resultN)
+			# nearestStats.returnCount += len(resultN)
 
-			# resultR = rangeQuery(zScores, regions, tree, zScores[pyroID], radius, rangeStats, 0)
+			resultR = rangeQuery(zScores, regions, tree, zScores[pyroID], radius, rangeStats, 0)
 			# correctR = correctRange[pyroID]
 			# if resultR == correctR:
 			# 	rangeStats.correct += 1
 			# else:
 			# 	print("\tR {} --- {} / {} : {} / {}".format(pyroID, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
 				# print("{} ----- {}".format({(pID, pointDist(regions, zScores[pyroID], zScores[pID])) for pID in resultR - correctR}, {(pID, pointDist(regions, zScores[pyroID], zScores[pID])) for pID in correctR -resultR}))
-			# rangeStats.returnCount += len(resultR)
+			rangeStats.returnCount += len(resultR)
 
-		nearestStats.average(queryCount)
-		# rangeStats.average(queryCount)
+		# nearestStats.average(queryCount)
+		rangeStats.average(queryCount)
 
-		nearestStats.calculate()
-		# rangeStats.calculate()
+		# nearestStats.calculate()
+		rangeStats.calculate()
 
-		print("\n\tNearest Stats")
-		nearestStats.printLevelStats()
-		nearestStats.printStats()
-		# print("\n\tRange Stats")
-		# rangeStats.printLevelStats()
-		# rangeStats.printStats()
+		# print("\n\tNearest Stats")
+		# nearestStats.printLevelStats()
+		# nearestStats.printStats()
+		print("\n\tRange Stats")
+		rangeStats.printLevelStats()
+		rangeStats.printStats()
 
 if __name__ == '__main__':
 	radius = 1.37
