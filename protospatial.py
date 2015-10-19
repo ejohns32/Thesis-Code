@@ -4,6 +4,7 @@ import itertools
 import random
 import math
 import cProfile
+import sys
 from operator import itemgetter
 
 class Box:
@@ -666,7 +667,8 @@ def rangeQuery(zScores, regions, regionsDispCount, tree, center, radii, stats, d
 
 
 def loadZScores():
-	with open("zScores.pickle", mode='r+b') as zScoresFile:
+	fileName = sys.argv[1] if len(sys.argv) > 1 else "zScores.pickle"
+	with open(fileName, mode='r+b') as zScoresFile:
 		return pickle.load(zScoresFile)
 
 def makeTrees(zScores, regions, regionsDispCount):
@@ -733,16 +735,19 @@ def test(zScores, trees, correctRange, regions, regionsDispCount, radii):
 			# nearestStats.returnCount += len(resultN)
 
 			resultR = rangeQuery(zScores, regions, regionsDispCount, tree, zScores[isoID], radii, rangeStats, 0)
-			correctR = correctRange[isoID] - seenIsolates
-			if resultR == correctR:
-				rangeStats.correct += 1
-			else:
-				print("\tR {} --- {} / {} : {} / {}".format(isoID, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
+			# correctR = correctRange[isoID] - seenIsolates
+			# if resultR == correctR:
+			# 	rangeStats.correct += 1
+			# else:
+			# 	print("\tR {} --- {} / {} : {} / {}".format(isoID, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
 			# 	# print("{} ----- {}".format({(pID, pointDist(regions, zScores[isoID], zScores[pID])) for pID in resultR - correctR}, {(pID, pointDist(regions, zScores[isoID], zScores[pID])) for pID in correctR -resultR}))
 			rangeStats.returnCount += len(resultR)
-			seenIsolates |= correctR
-			unseenCore |= correctR - {isoID}
-			queryIDs -= correctR
+			# seenIsolates |= correctR
+			# unseenCore |= correctR - {isoID}
+			# queryIDs -= correctR
+			seenIsolates |= resultR
+			unseenCore |= resultR - {isoID}
+			queryIDs -= resultR
 
 		# nearestStats.average(queryCount)
 		rangeStats.average(queryCount)
@@ -773,6 +778,6 @@ if __name__ == '__main__':
 	# correctNearest, correctRange = loadCorrect(threshold)
 	correctRange = loadCorrect(threshold)
 
-	# test(zScores, trees, correctRange, regions, regionsDispCount, radii)
-	cProfile.run("test(zScores, trees, correctRange, regions, regionsDispCount, radii)")
+	test(zScores, trees, correctRange, regions, regionsDispCount, radii)
+	# cProfile.run("test(zScores, trees, correctRange, regions, regionsDispCount, radii)")
 	# cProfile.run("test(zScores, trees, correctNearest, correctRange, regions, radii, nearestCount)")

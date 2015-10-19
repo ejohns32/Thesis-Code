@@ -3,8 +3,10 @@ import numpy
 import itertools
 import random
 import math
+import sys
 
-with open("zScores.pickle", mode='r+b') as zScoresFile:
+fileName = sys.argv[1] if len(sys.argv) > 1 else "zScores.pickle"
+with open(fileName, mode='r+b') as zScoresFile:
 	zScores = pickle.load(zScoresFile)
 
 isoIDs = list(zScores.keys())
@@ -28,5 +30,6 @@ for threshold in thresholds:
 	avgMatches = sum(len(matches) for _, matches in correct.items()) / len(correct)
 	print("avgMatches: {}".format(avgMatches))
 
-	with open("correctR{}.pickle".format(threshold), mode='w+b') as correctFile:
-		pickle.dump(correct, correctFile)
+	if len(sys.argv) == 1:
+		with open("correctR{}.pickle".format(threshold), mode='w+b') as correctFile:
+			pickle.dump(correct, correctFile)
