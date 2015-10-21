@@ -541,14 +541,14 @@ def pointInQuery(regions, center, radii, isolate):
 # def pointDist(regions, p1, p2):
 # 	return max(regionDist(p1[region], p2[region]) for region in regions)
 
-def rangeQuery(zScores, regions, regionsDispCount, tree, center, radii, stats, depth):
+def rangeQuery(zScores, regions, regionsDispCount, tree, center, radii, stats):
 	stats.increaseLevel()
 
 	alt = False
 	if not tree.doesContainPoint(center):
 		alt = True
 		stats.alternateCount += 1
-		stats.alternateDepth += depth
+		stats.alternateDepth += stats.level
 
 	result = set()
 	stats.levelStats[stats.level].totalNodes += 1
@@ -582,7 +582,7 @@ def rangeQuery(zScores, regions, regionsDispCount, tree, center, radii, stats, d
 				result |= fetchAll(child, stats)
 				stats.levelStats[stats.level].fetched += 1
 			else:
-				result |= rangeQuery(zScores, regions, regionsDispCount, child, center, radii, stats, depth+1)
+				result |= rangeQuery(zScores, regions, regionsDispCount, child, center, radii, stats)
 				if all(child.seen for child in tree.children):
 					tree.seen = True
 					stats.levelStats[stats.level].accumInnerSeen += 1
@@ -592,7 +592,7 @@ def rangeQuery(zScores, regions, regionsDispCount, tree, center, radii, stats, d
 		stats.levelStats[stats.level].branches += i
 		if alt and i == 0:
 			stats.altDeaths += 1
-			stats.altDeathDepth += depth
+			stats.altDeathDepth += stats.level
 
 		if len(result) > 0:
 			stats.innerUsed += 1
@@ -604,6 +604,68 @@ def rangeQuery(zScores, regions, regionsDispCount, tree, center, radii, stats, d
 
 	stats.decreaseLevel()
 	return result
+
+# def seenRangeQuery(zScores, regions, regionsDispCount, tree, center, radii, numNeeded, stats):
+# 	stats.increaseLevel()
+
+# 	alt = False
+# 	if not tree.doesContainPoint(center):
+# 		alt = True
+# 		stats.alternateCount += 1
+# 		stats.alternateDepth += stats.level
+
+# 	result = set()
+# 	stats.levelStats[stats.level].totalNodes += 1
+
+# 	if isinstance(tree, LeafNode):
+# 		stats.leavesChecked += 1
+# 		for isoID in tree.isoIDs:
+# 			stats.pointsChecked += 1
+# 			if pointInQuery(regions, center, radii, zScores[isoID]):
+# 				result.add(isoID)
+
+# 		tree.isoIDs -= result
+# 		tree.seenIDs |= result
+
+# 		if len(result) > 0:
+# 			stats.leavesUsed += 1
+# 			if len(tree.isoIDs) == 0:
+# 				tree.seen = True
+# 				stats.levelStats[stats.level].accumLeafSeen += 1
+# 			else:
+# 				tree.regionBoundingBoxes = Box.boundRegions(zScores, tree.isoIDs, regions, regionsDispCount)
+# 	else:
+# 		stats.innerChecked += 1
+# 		stats.levelStats[stats.level].inner += 1
+
+# 		i = 0
+# 		for child in tree.getIntersectingChildren(center, radii, stats):
+# 			if child.isContainedBy(center, radii):
+# 				result |= fetchAll(child, stats)
+# 				stats.levelStats[stats.level].fetched += 1
+# 			else:
+# 				result |= rangeQuery(zScores, regions, regionsDispCount, child, center, radii, stats)
+# 				if all(child.seen for child in tree.children):
+# 					tree.seen = True
+# 					stats.levelStats[stats.level].accumInnerSeen += 1
+# 			i += 1
+
+# 		stats.branchPerInner += i
+# 		stats.levelStats[stats.level].branches += i
+# 		if alt and i == 0:
+# 			stats.altDeaths += 1
+# 			stats.altDeathDepth += stats.level
+
+# 		if len(result) > 0:
+# 			stats.innerUsed += 1
+# 			if not tree.seen:
+# 				tree.regionBoundingBoxes = Box.combineRegions(regions, list(child.regionBoundingBoxes for child in tree.children))
+
+# 	if len(result) == 0:
+# 		stats.extraNodes += 1
+
+# 	stats.decreaseLevel()
+# 	return result
 
 # def nearestNeighbors(zScores, regions, tree, center, maxRadius, count, stats, depth):
 # 	stats.increaseLevel()
@@ -672,9 +734,9 @@ def loadZScores():
 		return pickle.load(zScoresFile)
 
 def makeTrees(zScores, regions, regionsDispCount):
-	pointsPerLeaf = 4
+	pointsPerLeaf = 8
 	# childrenPerInner = 3
-	dimsPerSplit = 5
+	dimsPerSplit = 10
 	regionDims = [range(dispCount) for dispCount in regionsDispCount]
 
 	trees = []
@@ -694,7 +756,7 @@ def loadCorrect(threshold):
 	return correctRange
 
 # def test(zScores, trees, correctNearest, correctRange, regions, radii, nearestCount):
-def test(zScores, trees, correctRange, regions, regionsDispCount, radii):
+def test(zScores, trees, correctRange, regions, regionsDispCount, radii, nearestCount):
 	# queryCount = 1000
 	# queryIDs = random.sample(zScores.keys(), queryCount)
 	queryIDs = set(zScores.keys())
@@ -711,8 +773,11 @@ def test(zScores, trees, correctRange, regions, regionsDispCount, radii):
 
 		# nearestStats = QueryStats()
 		rangeStats = QueryStats()
+		seenRangeStats = QueryStats()
 		seenIsolates = set()
 		unseenCore = set()
+
+		seenNeeded = 0
 
 		i = 0
 		while len(unseenCore) + len(queryIDs) > 0:
@@ -734,7 +799,11 @@ def test(zScores, trees, correctRange, regions, regionsDispCount, radii):
 				# print("{} ----- {}".format({(pID, pointDist(regions, zScores[isoID], zScores[pID])) for pID in resultN - correctN}, {(pID, pointDist(regions, zScores[isoID], zScores[pID])) for pID in correctN - resultN}))
 			# nearestStats.returnCount += len(resultN)
 
-			resultR = rangeQuery(zScores, regions, regionsDispCount, tree, zScores[isoID], radii, rangeStats, 0)
+			resultR = rangeQuery(zScores, regions, regionsDispCount, tree, zScores[isoID], radii, rangeStats)
+			resultLen = len(resultR - {isoID})
+			if resultLen > 0 and resultLen < nearestCount:
+				seenNeeded += 1
+				# seenRangeQuery(zScores, regions, regionsDispCount, tree, zScores[isoID], radii, nearestCount - len(resultR), seenRangeStats)
 			# correctR = correctRange[isoID] - seenIsolates
 			# if resultR == correctR:
 			# 	rangeStats.correct += 1
@@ -758,6 +827,7 @@ def test(zScores, trees, correctRange, regions, regionsDispCount, radii):
 		# print("\n\tNearest Stats")
 		# nearestStats.printLevelStats()
 		# nearestStats.printStats()
+		print("seenNeeded = {}".format(seenNeeded))
 		print("\n\tRange Stats")
 		rangeStats.printLevelStats()
 		rangeStats.printStats()
@@ -771,13 +841,13 @@ if __name__ == '__main__':
 	print(threshold, radii)
 	# radii = [1.3682, 1.3784]
 	# radii = [0.964365, 0.97468]
-	# nearestCount = 5
+	nearestCount = 5
 
 	zScores = loadZScores()
 	trees = makeTrees(zScores, regions, regionsDispCount)
 	# correctNearest, correctRange = loadCorrect(threshold)
 	correctRange = loadCorrect(threshold)
 
-	test(zScores, trees, correctRange, regions, regionsDispCount, radii)
+	test(zScores, trees, correctRange, regions, regionsDispCount, radii, nearestCount)
 	# cProfile.run("test(zScores, trees, correctRange, regions, regionsDispCount, radii)")
 	# cProfile.run("test(zScores, trees, correctNearest, correctRange, regions, radii, nearestCount)")
