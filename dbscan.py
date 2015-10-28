@@ -1,8 +1,6 @@
 import collections
 import itertools
 
-import protospatial #TODO: would be cool if not dependant on this
-
 def dbscan(points, radii, minNeighbors):
 	clusters = []
 
@@ -50,6 +48,8 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 	for neighbor in startNeighbors:
 		seen[neighbor] |= startPoint
 
+	#TODO(5): probably better for reachable and noise to be ordered. either bf or df?
+	#perhaps to the point of combining them and not doing a single cluster at a time. though i want to do more dense areas first right? or do I want to find edges first to keep the queues short?
 	if len(startNeighbors) >= minNeighbors:
 		reachable = startNeighbors
 		noise = set()
@@ -75,7 +75,7 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 			#maybe already have distances to neighbors so combine?
 			#maybe these are stored in spatial trees?
 			#maybe depends if point came from noise/reachable
-			if arePointsWithinRadii(point, queuedPoint, radii):
+			if point.isWithinRadiiOf(queuedPoint, radii):
 				assert(queuedPoint not in seen[point])
 				seen[point] |= queuedPoint
 				assert(point not in seen[queuedPoint])
@@ -98,3 +98,71 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 			noise |= unseenNeighbors
 
 	return clusters
+
+
+
+def verifyClusters(points, radii, minNeighbors, clusters):
+	correct = verifyClustersMaximality(points, radii, minNeighbors, clusters)
+
+	for cluster in clusters:
+		corrent &= verifyClusterConnectivity(points, radii, minNeighbors, cluster)
+
+	return correct
+
+def verifyClustersMaximality(points, neighborMap, minNeighbors, clusters):
+	correct = True
+	pointsList = list(points)
+	clusterMap = collections.defaultdict(set)
+
+	for cluster in clusters:
+		for point in cluster:
+			clusterMap[point] |= cluster
+
+	for i, point1 in enumerate(pointsList):
+		for j, point2 in enumerate(pointsList):
+			if i != j:
+				for cluster in clusterMap[point1]:
+					if isDensityReachable(neighborMap, minNeighbors, point1, point2):
+						correct &= point2 in cluster
+
+	return correct
+
+def verifyClusterConnectivity(points, neighborMap, minNeighbors, cluster):
+	correct = True
+	clusterPointsList = list(cluster)
+
+	for i, point1 in enumerate(clusterPointsList):
+		for point2 in clusterPointsList[i:]:
+			correct &= areDensityConnected(neighborMap, minNeighbors, point1, point2)
+
+	return correct
+
+
+def isDensityReachable(neighborMap, minNeighbors, fromPoint, point):
+	assert(fromPoint != point)
+
+	queue = collections.deque()
+	if len(neighborMap[fromPoint]) >= minNeighbors:
+		queue.append(fromPoint)
+
+	#breadth first search all reachable points
+	while len(queue) > 0:
+		neighbors = neighborMap[queue.popleft()]
+
+		if len(neighbors) >= minNeighbors:
+			queue.extend(neighbors)
+
+			if point in neighbors:
+				return True
+
+	return False
+
+def areDensityConnected(neighborMap, minNeighbors, point1, point2):
+	assert(point1 != point2)
+
+	#look for a point from which both point1 and point2 are reachable
+	for point in neighborMap[point1]:
+		if isDensityReachable(neighborMap, minNeighbors, point, point1) and isDensityReachable(neighborMap, minNeighbors, point, point2)
+			return True
+
+	return False
