@@ -13,6 +13,7 @@ def dbscan(points, radii, minNeighbors):
 
 	return clusters
 
+
 def expandCluster(points, radii, minNeighbors, unclassifiedPoints, reachable):
 	cluster = set(reachable)
 	unclassifiedPoints -= reachable
@@ -30,6 +31,9 @@ def expandCluster(points, radii, minNeighbors, unclassifiedPoints, reachable):
 
 
 
+
+
+
 def myDBscan(points, radii, minNeighbors):
 	clusters = []
 
@@ -40,6 +44,7 @@ def myDBscan(points, radii, minNeighbors):
 		clusters.extend(investigateNeighbors(unclassifiedPoints, radii, minNeighbors, point, neighbors))
 
 	return clusters
+
 
 def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNeighbors):
 	clusters = []
@@ -101,6 +106,9 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 
 
 
+
+
+
 def verifyClusters(points, radii, minNeighbors, clusters):
 	correct = verifyClustersMaximality(points, radii, minNeighbors, clusters)
 
@@ -108,6 +116,7 @@ def verifyClusters(points, radii, minNeighbors, clusters):
 		corrent &= verifyClusterConnectivity(points, radii, minNeighbors, cluster)
 
 	return correct
+
 
 def verifyClustersMaximality(points, neighborMap, minNeighbors, clusters):
 	correct = True
@@ -126,6 +135,7 @@ def verifyClustersMaximality(points, neighborMap, minNeighbors, clusters):
 						correct &= point2 in cluster
 
 	return correct
+
 
 def verifyClusterConnectivity(points, neighborMap, minNeighbors, cluster):
 	correct = True
@@ -156,6 +166,7 @@ def isDensityReachable(neighborMap, minNeighbors, fromPoint, point):
 				return True
 
 	return False
+
 
 def areDensityConnected(neighborMap, minNeighbors, point1, point2):
 	assert(point1 != point2)

@@ -1,0 +1,15 @@
+{
+	"regions": [
+		{
+			"name": "23-5",
+			"dispCount": 93
+		}, {
+			"name": "16-23",
+			"dispCount": 95
+		}
+	],
+	"threshold": 0.995,
+	"minNeighbors": 5,
+	"pointsPerLeaf": 8,
+	"dimsPerSplit": 10
+}
