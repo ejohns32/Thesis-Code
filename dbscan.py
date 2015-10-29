@@ -22,7 +22,7 @@ def expandCluster(points, radii, minNeighbors, unclassifiedPoints, reachable):
 		point = reachable.pop()
 		neighbors = points.getPointsInSphere(point, radii) - set(point)
 		if len(neighbors) >= minNeighbors:
-			unclassifiedNeighbors = neighbor for neighbor in neighbors if neighbor in unclassifiedPoints
+			unclassifiedNeighbors = set(neighbor for neighbor in neighbors if neighbor in unclassifiedPoints)
 			unclassifiedPoints -= unclassifiedNeighbors # or -= neighbors
 			reachable |= unclassifiedNeighbors
 			cluster |= neighbors
@@ -37,9 +37,10 @@ def expandCluster(points, radii, minNeighbors, unclassifiedPoints, reachable):
 def myDBscan(points, radii, minNeighbors):
 	clusters = []
 
-	unclassifiedPoints = points.copy() #spatial tree
+	unclassifiedPoints = points#.copy() #spatial tree
 	while len(unclassifiedPoints) > 0:
 		point = unclassifiedPoints.pop()
+		print("popped {}".format(point))
 		neighbors = unclassifiedPoints.popPointsInSphere(point, radii)
 		clusters.extend(investigateNeighbors(unclassifiedPoints, radii, minNeighbors, point, neighbors))
 
@@ -51,14 +52,14 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 	seen = collections.defaultdict(set)
 
 	for neighbor in startNeighbors:
-		seen[neighbor] |= startPoint
+		seen[neighbor].add(startPoint)
 
 	#TODO(5): probably better for reachable and noise to be ordered. either bf or df?
 	#perhaps to the point of combining them and not doing a single cluster at a time. though i want to do more dense areas first right? or do I want to find edges first to keep the queues short?
 	if len(startNeighbors) >= minNeighbors:
 		reachable = startNeighbors
 		noise = set()
-		currentCluster = set(startPoint) | set(startNeighbors)
+		currentCluster = {startPoint} | set(startNeighbors)
 		clusters.append(currentCluster)
 	else:
 		noise = startNeighbors
@@ -82,18 +83,18 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 			#maybe depends if point came from noise/reachable
 			if point.isWithinRadiiOf(queuedPoint, radii):
 				assert(queuedPoint not in seen[point])
-				seen[point] |= queuedPoint
+				seen[point].add(queuedPoint)
 				assert(point not in seen[queuedPoint])
-				seen[queuedPoint] |= point
+				seen[queuedPoint].add(point)
 
 		for neighbor in unseenNeighbors:
 			assert(point not in seen[neighbor])
-			seen[neighbor] |= point
+			seen[neighbor].add(point)
 
 		if len(unseenNeighbors) + len(seen[point]) >= minNeighbors:
 			if currentCluster is None:
 				#TODO(2): check if point is already in a cluster. not necessary with (3)
-				currentCluster = set(point)
+				currentCluster = {point}
 				clusters.append(currentCluster)
 
 			#TODO(3): move seen[point] & noise from noise to reachable?
@@ -109,18 +110,19 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 
 
 
-def verifyClusters(points, radii, minNeighbors, clusters):
-	correct = verifyClustersMaximality(points, radii, minNeighbors, clusters)
+def verifyClusters(pointsList, radii, minNeighbors, clusters):
+	print("verifying maximality...")
+	correct = verifyClustersMaximality(pointsList, radii, minNeighbors, clusters)
 
-	for cluster in clusters:
-		corrent &= verifyClusterConnectivity(points, radii, minNeighbors, cluster)
+	for i, cluster in enumerate(clusters):
+		print("verifying cluster {}/{}...".format(i, len(clusters)))
+		corrent &= verifyClusterConnectivity(radii, minNeighbors, cluster)
 
 	return correct
 
 
-def verifyClustersMaximality(points, neighborMap, minNeighbors, clusters):
+def verifyClustersMaximality(pointsList, neighborMap, minNeighbors, clusters):
 	correct = True
-	pointsList = list(points)
 	clusterMap = collections.defaultdict(set)
 
 	for cluster in clusters:
@@ -128,6 +130,7 @@ def verifyClustersMaximality(points, neighborMap, minNeighbors, clusters):
 			clusterMap[point] |= cluster
 
 	for i, point1 in enumerate(pointsList):
+		print("\t{}".format(i))
 		for j, point2 in enumerate(pointsList):
 			if i != j:
 				for cluster in clusterMap[point1]:
@@ -137,7 +140,7 @@ def verifyClustersMaximality(points, neighborMap, minNeighbors, clusters):
 	return correct
 
 
-def verifyClusterConnectivity(points, neighborMap, minNeighbors, cluster):
+def verifyClusterConnectivity(neighborMap, minNeighbors, cluster):
 	correct = True
 	clusterPointsList = list(cluster)
 
@@ -173,7 +176,7 @@ def areDensityConnected(neighborMap, minNeighbors, point1, point2):
 
 	#look for a point from which both point1 and point2 are reachable
 	for point in neighborMap[point1]:
-		if isDensityReachable(neighborMap, minNeighbors, point, point1) and isDensityReachable(neighborMap, minNeighbors, point, point2)
+		if isDensityReachable(neighborMap, minNeighbors, point, point1) and isDensityReachable(neighborMap, minNeighbors, point, point2):
 			return True
 
 	return False

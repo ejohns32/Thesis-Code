@@ -4,6 +4,7 @@ import cProfile
 
 import config
 import spatial
+import dbscan
 
 def loadIsolates():
 	fileName = sys.argv[1] if len(sys.argv) > 1 else "isolates.pickle"
@@ -45,35 +46,40 @@ def testSpatial(isolates, tree, correctRange, cfg):
 		else:
 			isolate = queryIsolates.pop()
 
-		# print("{}/{} - {}".format(i, len(queryIsolates), isolate.name))
 		resultR = tree.rangeQuery(isolate, cfg.radii)
-		# correctR = correctRange[isolate] - seenIsolates
+		correctR = correctRange[isolate] - seenIsolates
 
-		# if len(resultR) > 0:
-		# 	nonZeroCount += 1
-		# extraCount += len(resultR - correctR)
-		# missingCount += len(correctR - resultR)
+		if len(resultR) > 0:
+			nonZeroCount += 1
+		extraCount += len(resultR - correctR)
+		missingCount += len(correctR - resultR)
 
-		# print("{}/{} - {} - {}:{}".format(i, len(queryIsolates), isolate.name, len(resultR), len(correctR)))
-		# # print("\t{} --- {} / {} : {} / {}".format(isolate, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
-		# if resultR == correctR:
-		# 	correctCount += 1
-		# 	if len(resultR) > 0:
-		# 		nonZeroCorrectCount += 1
-		# else:
-		# 	print("\t{} ----- {}".format([(extraIsolate, isolate.regionsDist(extraIsolate)) for extraIsolate in resultR - correctR], [(missingIsolate, isolate.regionsDist(missingIsolate)) for missingIsolate in correctR -resultR]))
+		# print("{}/{} - {}".format(i, len(queryIsolates), isolate.name))
+		print("{}/{} - {} - {}:{}".format(i, len(queryIsolates), isolate.name, len(resultR), len(correctR)))
+		# print("\t{} --- {} / {} : {} / {}".format(isolate, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
+		if resultR == correctR:
+			correctCount += 1
+			if len(resultR) > 0:
+				nonZeroCorrectCount += 1
+		else:
+			print("\t{} ----- {}".format([(extraIsolate, isolate.regionsDist(extraIsolate)) for extraIsolate in resultR - correctR], [(missingIsolate, isolate.regionsDist(missingIsolate)) for missingIsolate in correctR -resultR]))
 
-		# seenIsolates |= correctR
-		# unseenCore |= correctR - {isolate}
-		# queryIsolates -= correctR
+		seenIsolates |= correctR
+		unseenCore |= correctR - {isolate}
+		queryIsolates -= correctR
 
-		seenIsolates |= resultR
-		unseenCore |= resultR - {isolate}
-		queryIsolates -= resultR
+		# seenIsolates |= resultR
+		# unseenCore |= resultR - {isolate}
+		# queryIsolates -= resultR
 
 	print("{}/{}".format(nonZeroCorrectCount, nonZeroCount))
 	print("{}/{}".format(correctCount, queryCount))
 	print("{},{}".format(extraCount, missingCount))
+
+def testCluster(isolates, tree, correctRange, cfg):
+	clusters = dbscan.myDBscan(tree, cfg.radii, cfg.minNeighbors)
+	print(clusters)
+	assert dbscan.verifyClusters(isolates, correctRange, cfg.minNeighbors, clusters)
 
 
 if __name__ == '__main__':
@@ -82,5 +88,7 @@ if __name__ == '__main__':
 	tree = makeTree(isolates, cfg)
 	correctRange = loadCorrect(cfg)
 
+	testCluster(isolates, tree, correctRange, cfg)
+
 	# testSpatial(isolates, tree, correctRange, cfg)
-	cProfile.run("testSpatial(isolates, tree, correctRange, cfg)")
+	# cProfile.run("testSpatial(isolates, tree, correctRange, cfg)")

@@ -189,9 +189,14 @@ class LeafNode(Node):
 		self.isolates = set(isolates)
 		self.count = len(self.isolates)
 
-	def fetchAll(self):
-		self.count = 0
-		return self.isolates
+	def pop(self):
+		rtn = self.isolates.pop()
+		self.update()
+		return rtn
+
+	# def fetchAll(self):
+	# 	self.count = 0
+	# 	return self.isolates
 
 	def rangeQuery(self, queryIsolate, radii):
 		# if self.isContainedBy(queryIsolate, radii):
@@ -203,14 +208,18 @@ class LeafNode(Node):
 			if isolate.isWithinRadiiOf(queryIsolate, radii):
 				result.add(isolate)
 
+		self.isolates -= result
+
 		if len(result) > 0:
-			self.isolates -= result
-			self.count = len(self.isolates)
-			if self.count > 0:
-				self.updateSpatialFilters()
-			# else it will be deleted
+			self.update()
 
 		return result
+
+	def update(self):
+		self.count = len(self.isolates)
+		if self.count > 0:
+			self.updateSpatialFilters()
+		#else node will be deleted by parent
 
 	def updateSpatialFilters(self):
 		for spatialFilter in self.spatialFilters:
@@ -222,34 +231,42 @@ class InnerNode(Node):
 	def __init__(self, spatialFilters, children):
 		Node.__init__(self, spatialFilters)
 		self.children = children
-		self.count = len(self.children)
+		self.count = sum(child.count for child in self.children)
 
-	def fetchAll(self):
-		self.count = 0
-		return set(itertools.chain.from_iterable(child.fetchAll() for child in self.children))
+	def pop(self):
+		rtn = self.children[0].pop()
+		self.update()
+		return rtn
+
+	# def fetchAll(self):
+	# 	self.count = 0
+	# 	return set(itertools.chain.from_iterable(child.fetchAll() for child in self.children))
 
 	def rangeQuery(self, queryIsolate, radii):
 		result = set()
 
 		for child in self.children:
 			if child.intersectsQuery(queryIsolate, radii):
-				if child.isContainedBy(queryIsolate, radii): #TODO: maybe only do this for leaves
-					result |= child.fetchAll()
-				else:
-					result |= child.rangeQuery(queryIsolate, radii)
+				# if child.isContainedBy(queryIsolate, radii): #TODO: maybe only do this for leaves
+				# 	result |= child.fetchAll()
+				# else:
+				result |= child.rangeQuery(queryIsolate, radii)
 
 		if len(result) > 0:
-			for child in (child for child in self.children if child.count == 0):
-				for spatialFilter in child.spatialFilters:
-					spatialFilter.deleteFromParent()
-				self.children.remove(child)
-			self.count = len(self.children)
-
-			if self.count > 0:
-				self.updateSpatialFilters()
-			#else node will be deleted by parent
+			self.update()
 
 		return result
+
+	def update(self):
+		for child in [child for child in self.children if child.count == 0]:
+			for spatialFilter in child.spatialFilters:
+				spatialFilter.deleteFromParent()
+			self.children.remove(child)
+		self.count = sum(child.count for child in self.children)
+
+		if self.count > 0:
+			self.updateSpatialFilters()
+		#else node will be deleted by parent
 
 	def updateSpatialFilters(self):
 		for spatialFilter in self.spatialFilters:
@@ -281,31 +298,7 @@ class InnerNode(Node):
 	# 	return result
 
 
-	# def rangeQuery(self, queryIsolate, radii):
-	# 	result = set()
 
-	# 	for child in self.getIntersectingChildren(queryIsolate, radii):
-	# 		if child.isContainedBy(queryIsolate, radii):
-	# 			result |= child.fetchAll()
-	# 		else:
-	# 			result |= child.rangeQuery(queryIsolate, radii)
-
-	# 	if len(result) > 0:
-	# 		if len(self.children) == 0:
-	# 			#delete node
-	# 		else:
-	# 			#merge children
-	# 			self.regionBoundingBoxes = Box.combineRegions(self.regions, list(child.regionBoundingBoxes for child in self.children))
-
-	# 	return result
-
-	# def getIntersectingChildren(self, queryIsolate, radii):
-	# 	intersectingChildren = self.children
-	# 	for region in self.regions:
-	# 		for spatialFilter in self.spatialFilters[region]
-	# 			# intersectingChildren = child for child in intersectingChildren if spatialFilter.doesChildIntersect(child, queryIsolate, radii)
-	# 			intersectingChildren = spatialFilter.filterIntersectingChildren(intersectingChildren, queryIsolate, radii)
-	# 	return intersectingChildren
 
 
 
@@ -316,17 +309,26 @@ class TreeConfig:
 		self.dimsPerSplit = dimsPerSplit
 
 
-
 class Tree:
 	def __init__(self, treeConfig, isolates):
 		self.treeConfig = treeConfig
+		self.isolates = isolates
 
 		regionsAllDims = {region: range(region.dispCount) for region in self.treeConfig.regions}
 		dummyRegionsIsLeftOfParentSplit = tuple(None for region in self.treeConfig.regions)
 		dummyFilterCollector = {(filterType, region): [] for region in self.treeConfig.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
 		self.root = splitMultiRegionCorrelatedDims(isolates, self.treeConfig, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
 
-	def rangeQuery(self, queryIsolate, radii):
+	def __iter__(self):
+		return iter(self.isolates)
+
+	def __len__(self):
+		return self.root.count
+
+	def pop(self):
+		return self.root.pop()
+
+	def popPointsInSphere(self, queryIsolate, radii):
 		if self.root.intersectsQuery(queryIsolate, radii):
 			if self.root.isContainedBy(queryIsolate, radii): #TODO: maybe only do this for leaves
 				return self.root.fetchAll()
@@ -334,7 +336,6 @@ class Tree:
 				return self.root.rangeQuery(queryIsolate, radii)
 		else:
 			return set()
-
 
 
 #TODO: verify dims not reused
@@ -409,98 +410,7 @@ def splitMultiRegionCorrelatedDims(isolates, treeConfig, regionsUnusedDims, regi
 			bboxFilters.append(bboxFilter)
 			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
 
-		spatialFilters = planeFilters + bboxFilters if depth <= 3 else bboxFilters + planeFilters
+		spatialFilters = planeFilters + bboxFilters if depth <= 2 else bboxFilters + planeFilters
 
 		return InnerNode(spatialFilters, children)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# class MultiRegionSplitInnerNode(MultiRegionSplitNode, InnerNode):
-# 	def __init__(self, children, regions, regionsSplitDims, regionsDimCoeffs, regionsSplitValues):
-# 		InnerNode.__init__(self, children)
-# 		self.parent = None
-# 		for childIndex, child in enumerate(self.children):
-# 			child.parent = self
-# 			child.childIndex = childIndex
-# 		self.regions = regions
-# 		self.regionsSplitDims = regionsSplitDims
-# 		self.regionsDimCoeffs = regionsDimCoeffs
-# 		self.regionCoeffNorms = [sum(regionsDimCoeffs[i][j]**2 for j in range(len(regionsDimCoeffs[i])))for i in range(len(regions))]
-# 		self.regionsSplitValues = [[-666.666] + splitValues + [666.666] for splitValues in regionsSplitValues]
-
-# 	#TODO: reduce from 4 multipDimSplitValDiffs to 1 and from 2 multiDimSplitVal to 1
-# 	def getRegionSplitDist(self, childIndex, region, center):
-# 		dimVal = multiDimSplitVal(center, self.regionsSplitDims[region], self.regionsDimCoeffs[region])
-# 		lowerDist = multiDimSplitValDiff(self.regionsSplitValues[region][childIndex], dimVal, self.regionCoeffNorms[region])
-# 		upperDist = multiDimSplitValDiff(dimVal, self.regionsSplitValues[region][childIndex+1], self.regionCoeffNorms[region])
-# 		# at least one should always be 0, both if inside
-# 		return max(lowerDist, upperDist)
-
-
-
-# class MultiRegionBoundedNode:
-# 	def __init__(self, regions, regionBoundingBoxes):
-# 		self.regions = regions
-# 		self.regionBoundingBoxes = regionBoundingBoxes
-# 		self.regionSeenBoxes = regionBoundingBoxes
-# 	def isContainedBy(self, center, radii):
-# 		return all(bbox.containedByBall(center[region], radius) for region, radius, bbox in zip(self.regions, radii, self.regionBoundingBoxes))
-# 	def doesContainPoint(self, point):
-# 		return all(bbox.containsPoint(point[region]) for region, bbox in zip(self.regions, self.regionBoundingBoxes))
-
-# class MultiRegionBoundedInnerNode(MultiRegionBoundedNode, InnerNode):
-# 	def __init__(self, children, regions):
-# 		MultiRegionBoundedNode.__init__(self, regions, Box.combineRegions(regions, list(child.regionBoundingBoxes for child in children)))
-# 		InnerNode.__init__(self, children)
-
-# class MultiRegionBoundedLeafNode(MultiRegionBoundedNode, LeafNode):
-# 	def __init__(self, isoIDs, regions, regionsDispCount, zScores):
-# 		MultiRegionBoundedNode.__init__(self, [region for region in regions], Box.boundRegions(zScores, isoIDs, regions, regionsDispCount))
-# 		LeafNode.__init__(self, isoIDs)
-
-
-
-# class MultiRegionCombinedInnerNode(MultiRegionCombinedNode, MultiRegionBoundedInnerNode, MultiRegionSplitInnerNode):
-# 	def getIntersectingChildren(self, center, radii):
-# 		anscDist = {region: 0.0 for region in self.regions}
-# 		if self.parent:
-# 			anscDist = self.parent.memoDists[self.childIndex]
-
-# 		result = set()
-# 		self.memoDists = [{region: 0.0 for region in self.regions} for _ in range(len(self.children))]
-# 		for childIndex, child in enumerate(self.children):
-# 			if all(bbox.intersectsBall(center[region], radius) for region, radius, bbox in zip(self.regions, radii, child.regionBoundingBoxes)):
-
-# 				splitDists = []
-# 				regionDists = []
-# 				for i, region in enumerate(self.regions):
-# 					splitDist = self.getRegionSplitDist((childIndex >> i) % 2, i, center[region])
-# 					dist = math.sqrt(anscDist[region]**2 + splitDist**2) if splitDist > 0 else anscDist[region]
-# 					self.memoDists[childIndex][region] = dist
-# 					splitDists.append(splitDist)
-# 					regionDists.append(dist)
-
-# 				if all(regionDist <= radius for regionDist, radius in zip(regionDists, radii)):
-# 					result.add(child)
-
-# 		return result
