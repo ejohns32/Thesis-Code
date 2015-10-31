@@ -11,5 +11,6 @@
 	"threshold": 0.995,
 	"minNeighbors": 5,
 	"pointsPerLeaf": 8,
-	"dimsPerSplit": 10
+	"dimsPerSplit": 10,
+	"isolateSubsetSize": 3000
 }

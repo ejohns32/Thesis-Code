@@ -2,8 +2,12 @@ import pickle
 import numpy
 import itertools
 import math
+import cProfile
 
+import config
 import pyroprinting
+import fullsearch
+
 
 
 
@@ -198,7 +202,7 @@ class LeafNode(Node):
 	# 	self.count = 0
 	# 	return self.isolates
 
-	def rangeQuery(self, queryIsolate, radii):
+	def rangeQuery(self, queryIsolate, radii, deleteResults):
 		# if self.isContainedBy(queryIsolate, radii):
 		# 	return self.fetchAll()
 
@@ -208,10 +212,9 @@ class LeafNode(Node):
 			if isolate.isWithinRadiiOf(queryIsolate, radii):
 				result.add(isolate)
 
-		self.isolates -= result
-
-		if len(result) > 0:
-			self.update()
+		if deleteResults and len(result) > 0:
+				self.isolates -= result
+				self.update()
 
 		return result
 
@@ -242,7 +245,7 @@ class InnerNode(Node):
 	# 	self.count = 0
 	# 	return set(itertools.chain.from_iterable(child.fetchAll() for child in self.children))
 
-	def rangeQuery(self, queryIsolate, radii):
+	def rangeQuery(self, queryIsolate, radii, deleteResults):
 		result = set()
 
 		for child in self.children:
@@ -250,9 +253,9 @@ class InnerNode(Node):
 				# if child.isContainedBy(queryIsolate, radii): #TODO: maybe only do this for leaves
 				# 	result |= child.fetchAll()
 				# else:
-				result |= child.rangeQuery(queryIsolate, radii)
+				result |= child.rangeQuery(queryIsolate, radii, deleteResults)
 
-		if len(result) > 0:
+		if deleteResults and len(result) > 0:
 			self.update()
 
 		return result
@@ -302,22 +305,22 @@ class InnerNode(Node):
 
 
 
-class TreeConfig:
-	def __init__(self, regions, pointsPerLeaf, dimsPerSplit):
-		self.regions = regions
-		self.pointsPerLeaf = pointsPerLeaf
-		self.dimsPerSplit = dimsPerSplit
+# class TreeConfig:
+# 	def __init__(self, regions, pointsPerLeaf, dimsPerSplit):
+# 		self.regions = regions
+# 		self.pointsPerLeaf = pointsPerLeaf
+# 		self.dimsPerSplit = dimsPerSplit
 
 
 class Tree:
-	def __init__(self, treeConfig, isolates):
-		self.treeConfig = treeConfig
+	def __init__(self, clusterConfig, isolates):
+		# self.treeConfig = treeConfig
 		self.isolates = isolates
 
-		regionsAllDims = {region: range(region.dispCount) for region in self.treeConfig.regions}
-		dummyRegionsIsLeftOfParentSplit = tuple(None for region in self.treeConfig.regions)
-		dummyFilterCollector = {(filterType, region): [] for region in self.treeConfig.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
-		self.root = splitMultiRegionCorrelatedDims(isolates, self.treeConfig, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
+		regionsAllDims = {region: range(region.dispCount) for region in clusterConfig.regions}
+		dummyRegionsIsLeftOfParentSplit = tuple(None for region in clusterConfig.regions)
+		dummyFilterCollector = {(filterType, region): [] for region in clusterConfig.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+		self.root = splitMultiRegionCorrelatedDims(isolates, clusterConfig, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
 
 	def __iter__(self):
 		return iter(self.isolates)
@@ -328,39 +331,45 @@ class Tree:
 	def pop(self):
 		return self.root.pop()
 
-	def popPointsInSphere(self, queryIsolate, radii):
+	def getNeighborsOf(self, queryIsolate, radii):
+		#TODO have children check themselves in range query instead of having parents do it
 		if self.root.intersectsQuery(queryIsolate, radii):
-			if self.root.isContainedBy(queryIsolate, radii): #TODO: maybe only do this for leaves
-				return self.root.fetchAll()
-			else:
-				return self.root.rangeQuery(queryIsolate, radii)
+			return self.root.rangeQuery(queryIsolate, radii, False) - {queryIsolate}
+		else:
+			return set()
+
+
+	def popNeighborsOf(self, queryIsolate, radii):
+		#TODO have children check themselves in range query instead of having parents do it
+		if self.root.intersectsQuery(queryIsolate, radii):
+			return self.root.rangeQuery(queryIsolate, radii, True) - {queryIsolate}
 		else:
 			return set()
 
 
 #TODO: verify dims not reused
-def splitMultiRegionCorrelatedDims(isolates, treeConfig, regionsUnusedDims, regionsIsLeftOfParentSplit, parentFilterCollector, depth):
-	if len(isolates) <= treeConfig.pointsPerLeaf:
+def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLeftOfParentSplit, parentFilterCollector, depth):
+	if len(isolates) <= cfg.pointsPerLeaf:
 		spatialFilters = []
-		for region in treeConfig.regions:
+		for region in cfg.regions:
 			bboxFilter = BoundingBoxFilter.fromIsolates(region, isolates)
 			spatialFilters.append(bboxFilter)
 			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
 
-		for region, isLeft in zip(treeConfig.regions, regionsIsLeftOfParentSplit):
+		for region, isLeft in zip(cfg.regions, regionsIsLeftOfParentSplit):
 			planeFilter = PlanePartitionFilter.fromSide(region, isLeft)
 			spatialFilters.append(planeFilter)
 			parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
 
 		return LeafNode(spatialFilters, isolates)
 	else:
-		truthTable = [tuple(reversed(truth)) for truth in itertools.product((True, False), repeat=len(treeConfig.regions))]
+		truthTable = [tuple(reversed(truth)) for truth in itertools.product((True, False), repeat=len(cfg.regions))]
 		# print(truthTable)
 		childrenIsolates = {truth: [] for truth in truthTable}
 
 		regionsSplitPlane = []
 		regionsSplitValue = []
-		for region in treeConfig.regions:
+		for region in cfg.regions:
 			dimSum = sum((isolate.regionsPyroprint[region] for isolate in isolates), numpy.zeros(region.dispCount))
 			dimAvg = dimSum / len(isolates)
 			dimDevSum = sum(((dimAvg-isolate.regionsPyroprint[region]) ** 2 for isolate in isolates), numpy.zeros(region.dispCount))
@@ -370,8 +379,8 @@ def splitMultiRegionCorrelatedDims(isolates, treeConfig, regionsUnusedDims, regi
 			# mainDim = max(range(dispCount), key=lambda dim: dimStdDev[dim])
 			correlations = numpy.divide(sum(isolate.regionsPyroprint[region] * isolate.regionsPyroprint[region][mainDim] for isolate in isolates) - dimSum * dimSum[mainDim] / len(isolates), ((len(isolates) - 1) * dimStdDev * dimStdDev[mainDim]))
 
-			splitDims = sorted(regionsUnusedDims[region], key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:treeConfig.dimsPerSplit]
-			# splitDims = sorted(range(dispCount), key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:treeConfig.dimsPerSplit]
+			splitDims = sorted(regionsUnusedDims[region], key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:cfg.dimsPerSplit]
+			# splitDims = sorted(range(dispCount), key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:cfg.dimsPerSplit]
 
 			dimCoeffs = [1.0] * len(splitDims)
 
@@ -387,25 +396,25 @@ def splitMultiRegionCorrelatedDims(isolates, treeConfig, regionsUnusedDims, regi
 			regionsSplitValue.append(splitValue)
 
 		for isolate in isolates:
-			truth = tuple(bool(splitPlane.valueOf(isolate.regionsPyroprint[region]) < splitValue) for region, splitPlane, splitValue in zip(treeConfig.regions, regionsSplitPlane, regionsSplitValue))
+			truth = tuple(bool(splitPlane.valueOf(isolate.regionsPyroprint[region]) < splitValue) for region, splitPlane, splitValue in zip(cfg.regions, regionsSplitPlane, regionsSplitValue))
 			childrenIsolates[truth].append(isolate)
 
 		children = []
 
-		childFilterCollector = {(filterType, region): [] for region in treeConfig.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+		childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
 
-		childrenRegionsUnusedDims = {region: [dim for dim in regionsUnusedDims[region] if dim not in splitPlane.dims] for region, splitPlane in zip(treeConfig.regions, regionsSplitPlane)}
+		childrenRegionsUnusedDims = {region: [dim for dim in regionsUnusedDims[region] if dim not in splitPlane.dims] for region, splitPlane in zip(cfg.regions, regionsSplitPlane)}
 		for truth in truthTable:
-			children.append(splitMultiRegionCorrelatedDims(childrenIsolates[truth], treeConfig, childrenRegionsUnusedDims, truth, childFilterCollector, depth+1))
+			children.append(splitMultiRegionCorrelatedDims(childrenIsolates[truth], cfg, childrenRegionsUnusedDims, truth, childFilterCollector, depth+1))
 
 		planeFilters = []
-		for region, splitPlane, splitValue, isLeft in zip(treeConfig.regions, regionsSplitPlane, regionsSplitValue, regionsIsLeftOfParentSplit):
+		for region, splitPlane, splitValue, isLeft in zip(cfg.regions, regionsSplitPlane, regionsSplitValue, regionsIsLeftOfParentSplit):
 			planeFilter = PlanePartitionFilter.fromSplitPlane(region, childFilterCollector[PlanePartitionFilter, region], splitPlane, splitValue, isLeft)
 			planeFilters.append(planeFilter)
 			parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
 
 		bboxFilters = []
-		for region in treeConfig.regions:
+		for region in cfg.regions:
 			bboxFilter = BoundingBoxFilter.fromChildrenFilters(region, childFilterCollector[BoundingBoxFilter, region])
 			bboxFilters.append(bboxFilter)
 			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
@@ -413,4 +422,50 @@ def splitMultiRegionCorrelatedDims(isolates, treeConfig, regionsUnusedDims, regi
 		spatialFilters = planeFilters + bboxFilters if depth <= 2 else bboxFilters + planeFilters
 
 		return InnerNode(spatialFilters, children)
+
+
+
+
+def testSpatial(isolates, tree, correctRange, cfg):
+	queryIsolates = set(isolates)
+	queryCount = len(queryIsolates)
+
+	correctCount = 0
+	nonZeroCorrectCount = 0
+	nonZeroCount = 0
+	extraCount = 0
+	missingCount = 0
+
+	for i, isolate in enumerate(queryIsolates):
+		resultR = tree.getNeighborsOf(isolate, cfg.radii)
+		correctR = correctRange[isolate]
+
+		if len(resultR) > 0:
+			nonZeroCount += 1
+		extraCount += len(resultR - correctR)
+		missingCount += len(correctR - resultR)
+
+		# print("{}/{} - {}".format(i, len(queryIsolates), isolate))
+		print("{}/{} - {} - {}:{}".format(i, len(queryIsolates), isolate, len(resultR), len(correctR)))
+		# print("\t{} --- {} / {} : {} / {}".format(isolate, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
+		if resultR == correctR:
+			correctCount += 1
+			if len(resultR) > 0:
+				nonZeroCorrectCount += 1
+		else:
+			print("\t{} ----- {}".format([(extraIsolate, isolate.regionsDist(extraIsolate)) for extraIsolate in resultR - correctR], [(missingIsolate, isolate.regionsDist(missingIsolate)) for missingIsolate in correctR -resultR]))
+
+	print("{}/{}".format(nonZeroCorrectCount, nonZeroCount))
+	print("{}/{}".format(correctCount, queryCount))
+	print("{},{}".format(extraCount, missingCount))
+
+if __name__ == '__main__':
+	cfg = config.loadConfig()
+	isolates = pyroprinting.loadIsolatesFromFile(cfg.isolateSubsetSize)
+	tree = Tree(cfg, isolates)
+	correctNeighbors = fullsearch.loadNeighborMapFromFile(cfg.isolateSubsetSize, cfg.threshold)
+
+
+	testSpatial(isolates, tree, correctNeighbors, cfg)
+	# cProfile.run("testSpatial(isolates, tree, correctNeighbors, cfg)")
 

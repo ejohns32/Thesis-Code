@@ -31,3 +31,4 @@ class Config:
 		self.minNeighbors = decoded["minNeighbors"]
 		self.pointsPerLeaf = decoded["pointsPerLeaf"]
 		self.dimsPerSplit = decoded["dimsPerSplit"]
+		self.isolateSubsetSize = decoded["isolateSubsetSize"]
