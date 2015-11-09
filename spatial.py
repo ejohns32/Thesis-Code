@@ -329,6 +329,7 @@ class Tree:
 		return self.root.count
 
 	def pop(self):
+		# TODO: also remove from self.isolates
 		return self.root.pop()
 
 	def getNeighborsOf(self, queryIsolate, radii):
@@ -342,6 +343,7 @@ class Tree:
 	def popNeighborsOf(self, queryIsolate, radii):
 		#TODO have children check themselves in range query instead of having parents do it
 		if self.root.intersectsQuery(queryIsolate, radii):
+			# TODO: also remove from self.isolates
 			return self.root.rangeQuery(queryIsolate, radii, True) - {queryIsolate}
 		else:
 			return set()

@@ -88,7 +88,9 @@ def investigateNeighbors(unseenPoints, radii, minNeighbors, startPoint, startNei
 		for queuedPoint in itertools.chain(reachable, noise):
 			#TODO: try to shortcut this comparison
 			# maybe if unseen = 0?
-			# maybe already have distances to neighbors so combine?
+			# maybe if unseen + seen is > minNeighbors? (for both)
+			# maybe can only skip points in reachable
+			# maybe already have distances to neighbors so combine for bestcase distance and skip if bestcase doesnt pass threshold?
 			# maybe these are stored in spatial trees?
 			# maybe depends if point came from noise/reachable
 			if point.isWithinRadiiOf(queuedPoint, radii):
@@ -250,13 +252,13 @@ if __name__ == '__main__':
 	isolates = pyroprinting.loadIsolatesFromFile(cfg.isolateSubsetSize)
 	# correctNeighbors = fullsearch.loadNeighborMapFromFile(cfg.isolateSubsetSize, cfg.threshold)
 
-	tree = spatial.Tree(cfg, isolates)
-	# fullSearcher = fullsearch.FullSearcher(isolates)
+	# tree = spatial.Tree(cfg, isolates)
+	fullSearcher = fullsearch.FullSearcher(isolates)
 	# precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
 
 	# spatialGetClusters = dbscan(tree, cfg.radii, cfg.minNeighbors)
-	spatialPopClusters = myDBscan(tree, cfg.radii, cfg.minNeighbors)
-	# fullGetClusters = dbscan(fullSearcher, cfg.radii, cfg.minNeighbors)
+	# spatialPopClusters = myDBscan(tree, cfg.radii, cfg.minNeighbors)
+	fullGetClusters = dbscan(fullSearcher, cfg.radii, cfg.minNeighbors)
 	# fullPopClusters = myDBscan(fullSearcher, cfg.radii, cfg.minNeighbors)
 	# preFullClusters = dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
 
