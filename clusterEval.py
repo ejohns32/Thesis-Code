@@ -32,11 +32,12 @@ def distributionCorrectness(pearsonMap, clusters, betaDistribution):
 	return pValue
 
 def individualClusterDistributionCorrectness(pearsonMap, clusters, betaDistribution):
-	# TODO: double check that this is ok
+	# TODO: double check that this is statistically valid
 	# null hypothesis: all individual clusters fit
 	# reject if any individuals reject
 	# want chance that none reject. given chance that each doesn't reject
 	# so all pValues multiplied together
+
 	# print()
 	chanceNoneReject = 1.0
 	for cluster in clusters:
@@ -49,7 +50,7 @@ def individualClusterDistributionCorrectness(pearsonMap, clusters, betaDistribut
 
 # seems to need large clusters to work
 def pairedClustersDistributionCorrectness(pearsonMap, clusters, betaDistribution):
-	# TODO: double check that this is ok
+	# TODO: double check that this is statistically valid
 	# null hypothesis: no pairs of clusters fit
 	# reject if any pairs fit
 	# want chance that all reject. given chance that each doesn't reject

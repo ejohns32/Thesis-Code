@@ -226,8 +226,9 @@ def areDensityConnected(neighborMap, minNeighbors, point1, point2):
 	return False
 
 
-def lookForPointsInMultipleClusters(points, clusters):
+def getMultipleClusterPoints(points, clusters):
 	clusterMap = collections.defaultdict(list)
+	multipleClusterPoints = []
 
 	for cluster in clusters:
 		for point in cluster:
@@ -235,17 +236,15 @@ def lookForPointsInMultipleClusters(points, clusters):
 
 	for point in points:
 		if len(clusterMap[point]) > 1:
+			multipleClusterPoints.append(point)
 			print(point)
 
-def printClusters(clusters):
-	for cluster in clusters:
-		print(cluster)
-		print()
+	return multipleClusterPoints
 
-def testClusters(isolates, clusters, correctNeighbors, cfg): 
-	print(len(clusters))
-	assert verifyClusters(isolates, correctNeighbors, cfg.minNeighbors, clusters)
-	return clusters
+def printClusters(clusters):
+	for i, cluster in enumerate(clusters):
+		print("{}/{}: {}".foramt(i, len(clusters), cluster))
+		print()
 
 if __name__ == '__main__':
 	cfg = config.loadConfig()
@@ -269,8 +268,7 @@ if __name__ == '__main__':
 	# preFullClusters = {frozenset(cluster) for cluster in preFullClusters}
 
 	# printClusters(preFullClusters)
-	# lookForPointsInMultipleClusters(isolates, preFullClusters)
+	# assert len(getMultipleClusterPoints(isolates, preFullClusters)) == 0
 	# assert spatialGetClusters == spatialPopClusters
 	# assert fullGetClusters == fullPopClusters
-
-	# testClusters(isolates, spatialClusters, correctNeighbors, cfg)
+	# assert verifyClusters(isolates, correctNeighbors, cfg.minNeighbors, clusters)
