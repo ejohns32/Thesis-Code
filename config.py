@@ -15,7 +15,7 @@ class Config:
 	def __init__(self, clusterConfigJson):
 		decoded = json.load(clusterConfigJson)
 
-		self.regions = [pyroprinting.Region(region["name"], region["dispCount"], i) for i, region in enumerate(decoded["regions"])]
+		self.regions = [pyroprinting.Region(region["name"], region["dispCount"]) for i, region in enumerate(decoded["regions"])]
 		# if os.path.isfile(regionsPickleFileName):
 		# 	with open(regionsPickleFileName, mode='r+b') as regionsPickleFile:
 		# 		self.regions = pickle.load(regionsPickleFile)

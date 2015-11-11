@@ -11,10 +11,12 @@ import config
 
 
 class Region:
-	def __init__(self, name, dispCount, index):
+	nextIndex = 0
+	def __init__(self, name, dispCount):
 		self.name = name
 		self.dispCount = dispCount
-		self.index = index
+		self.index = nextIndex
+		nextIndex += 1
 		# self.hash = hash((name, dispCount))
 
 	def __repr__(self):

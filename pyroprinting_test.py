@@ -31,8 +31,8 @@ class TestIsolate(unittest.TestCase):
 			self.assertAlmostEqual(expFloat, actFloat)
 
 	def testRegionsDistAndPearson(self):
-		region1 = pyroprinting.Region("region1", 6, 0)
-		region2 = pyroprinting.Region("region2", 4, 1)
+		region1 = pyroprinting.Region("region1", 6)
+		region2 = pyroprinting.Region("region2", 4)
 
 		# Note: not all arrays are valid zScore arrays. Pearson from zscores requires such a valid array.
 		iso1 = pyroprinting.Isolate("iso1", {region1: numpy.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0]), region2: numpy.array([1.0, -1.0, 1.0, -1.0])})
@@ -61,18 +61,19 @@ class TestIsolate(unittest.TestCase):
 		# cursor.close()
 
 	def testIsWithinRadiiOf(self):
-		region1 = pyroprinting.Region("region1", 6, 0)
-		region2 = pyroprinting.Region("region2", 4, 1)
+		region1 = pyroprinting.Region("region1", 6)
+		region2 = pyroprinting.Region("region2", 4)
 
 		# Note: not all arrays are valid zScore arrays.
 		iso1 = pyroprinting.Isolate("iso1", {region1: numpy.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0]), region2: numpy.array([1.0, -1.0, 1.0, -1.0])})
 		iso2 = pyroprinting.Isolate("iso2", {region1: numpy.array([1.0, 1.0, 1.0, -1.0, -1.0, -1.0]), region2: numpy.array([-1.0, 1.0, -1.0, 1.0])})
 
+		# test if both regions are inside or outside radius
 		self.assertFalse(iso1.isWithinRadiiOf(iso2, {region1: 2, region2: 3}))
 		self.assertTrue(iso1.isWithinRadiiOf(iso1, {region1: 2, region2: 3}))
 		self.assertTrue(iso2.isWithinRadiiOf(iso2, {region1: 2, region2: 3}))
 
-		# test if one region is witchin radius but not other
+		# test if one region is inside radius but not other
 		self.assertFalse(iso1.isWithinRadiiOf(iso2, {region1: 20, region2: 3})) 
 		self.assertFalse(iso1.isWithinRadiiOf(iso2, {region1: 2, region2: 30}))
 		
