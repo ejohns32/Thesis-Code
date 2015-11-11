@@ -26,7 +26,8 @@ class Config:
 		# 	self.regions = configRegions
 
 		self.threshold = decoded["threshold"]
-		self.radii = {region: math.sqrt(2*region.dispCount * (1 - self.threshold)) for region in self.regions}
+		# self.radii = {region: math.sqrt(2*region.dispCount * (1 - self.threshold)) for region in self.regions}
+		self.radii = {region: pyroprinting.distFromPearson(self.threshold, region.dispCount) for region in self.regions}
 		print(self.threshold, tuple((region.name, radius) for region, radius in self.radii.items()))
 		self.minNeighbors = decoded["minNeighbors"]
 		self.pointsPerLeaf = decoded["pointsPerLeaf"]

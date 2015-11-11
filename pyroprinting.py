@@ -3,6 +3,7 @@ import pickle
 import json
 import numpy
 import os.path
+import math
 
 import config
 
@@ -33,19 +34,25 @@ class Region:
 # 		self.region = region
 # 		self.zScores = zScores
 
+def pearsonFromDist(dist, dispCount):
+	return 1 - dist**2 / (2*dispCount)
+
+def distFromPearson(pearson, dispCount):
+	return math.sqrt(2*dispCount * (1 - pearson))
+
 class Isolate:
-	def __init__(self, name, regionsPyroprint):
+	def __init__(self, name, regionsPyroprintZscores):
 		self.name = name
-		self.regionsPyroprint = regionsPyroprint
+		self.regionsPyroprintZscores = regionsPyroprintZscores
 
 	def regionsDist(self, other):
-		return [(region, numpy.linalg.norm(other.regionsPyroprint[region] - self.regionsPyroprint[region])) for region in set(self.regionsPyroprint.keys()) & set(other.regionsPyroprint.keys())]
+		return [(region, numpy.linalg.norm(other.regionsPyroprintZscores[region] - self.regionsPyroprintZscores[region])) for region in set(self.regionsPyroprintZscores.keys()) & set(other.regionsPyroprintZscores.keys())]
 
 	def regionsPearson(self, other):
-		return [(region, numpy.sum(self.regionsPyroprint[region] * other.regionsPyroprint[region]) / region.dispCount) for region in set(self.regionsPyroprint.keys()) & set(other.regionsPyroprint.keys())]
+		return [(region, numpy.sum(self.regionsPyroprintZscores[region] * other.regionsPyroprintZscores[region]) / region.dispCount) for region in set(self.regionsPyroprintZscores.keys()) & set(other.regionsPyroprintZscores.keys())]
 
 	def isWithinRadiiOf(self, other, radii):
-		return all((numpy.linalg.norm(other.regionsPyroprint[region] - self.regionsPyroprint[region]) <= radius for region, radius in radii.items()))
+		return all((numpy.linalg.norm(other.regionsPyroprintZscores[region] - self.regionsPyroprintZscores[region]) <= radius for region, radius in radii.items()))
 
 	def __repr__(self):
 		return self.name
