@@ -11,15 +11,28 @@ import config
 
 
 
-
+# TODO: use region.index to store regions in arrays instead of dicts
 class Region:
 	nextIndex = 0
-	def __init__(self, name, dispCount):
+	def __init__(self, name, dispCount, pSimThresholdAlpha, pSimThresholdBeta, betaDistributionAlpha, betaDistributionBeta):
 		self.name = name
 		self.dispCount = dispCount
-		self.index = nextIndex
-		nextIndex += 1
-		# self.hash = hash((name, dispCount))
+		self.pSimThresholdAlpha = pSimThresholdAlpha
+		self.pSimThresholdBeta = pSimThresholdBeta
+		self.betaDistributionAlpha = betaDistributionAlpha
+		self.betaDistributionBeta = betaDistributionBeta
+
+		self.index = Region.nextIndex
+		Region.nextIndex += 1
+
+	def fromDecodedJSON(decodedJSON):
+		return Region(
+			decodedJSON["name"],
+			decodedJSON["dispCount"],
+			decodedJSON["pearsonSimilarityThresholdAlpha"],
+			decodedJSON["pearsonSimilarityThresholdBeta"],
+			decodedJSON["betaDistributionAlpha"],
+			decodedJSON["betaDistributionBeta"])
 
 	def __repr__(self):
 		return self.name
@@ -33,27 +46,23 @@ class Region:
 	def __hash__(self):
 		return self.index
 
-# class Pyroprint:
-# 	def __init__(self, region, zScores):
-# 		self.region = region
-# 		self.zScores = zScores
-
 def pearsonFromDist(dist, dispCount):
 	return 1 - dist**2 / (2*dispCount)
 
 def distFromPearson(pearson, dispCount):
 	return math.sqrt(2*dispCount * (1 - pearson))
 
+# TODO: add isolate.index to store isolates in arrays instead of dicts
 class Isolate:
 	def __init__(self, name, regionsPyroprintZscores):
 		self.name = name
 		self.regionsPyroprintZscores = regionsPyroprintZscores
 
-	def regionsDist(self, other):
-		return [(region, numpy.linalg.norm(other.regionsPyroprintZscores[region] - self.regionsPyroprintZscores[region])) for region in set(self.regionsPyroprintZscores.keys()) & set(other.regionsPyroprintZscores.keys())]
+	def regionDist(self, other, region):
+		return numpy.linalg.norm(other.regionsPyroprintZscores[region] - self.regionsPyroprintZscores[region])
 
-	def regionsPearson(self, other):
-		return [(region, numpy.sum(self.regionsPyroprintZscores[region] * other.regionsPyroprintZscores[region]) / region.dispCount) for region in set(self.regionsPyroprintZscores.keys()) & set(other.regionsPyroprintZscores.keys())]
+	def regionPearson(self, other, region):
+		return numpy.sum(self.regionsPyroprintZscores[region] * other.regionsPyroprintZscores[region]) / region.dispCount
 
 	def isWithinRadiiOf(self, other, radii):
 		return all((numpy.linalg.norm(other.regionsPyroprintZscores[region] - self.regionsPyroprintZscores[region]) <= radius for region, radius in radii.items()))
@@ -66,6 +75,9 @@ class Isolate:
 
 	def __ne__(self, other):
 		return not self.__eq__(other)
+
+	def __lt__(self, other):
+		return self.name < other.name
 
 	def __hash__(self):
 		return hash(self.name)
@@ -120,20 +132,22 @@ def loadIsolatesFromDB(regions):
 	return [Isolate(isoID, {regionNameLookup[regionName]: numpy.array(pyroprint) for regionName, pyroprint in regionsPyroprintMap.items()}) for isoID, regionsPyroprintMap in data.items()]
 
 def getRandomSubset(isolates, isolateSubsetSize):
-	list(random.sample(isolates, isolateSubsetSize))
+	return list(random.sample(isolates, isolateSubsetSize))
 
-def loadIsolatesFromFile(cfg):
-	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
+def getIsolatesCacheFileName(cfg):
+	return "isolates{}.pickle".format(cfg.isolateSubsetSize)
+
+def loadIsolatesFromFile(cacheFileName):
 	with open(cacheFileName, mode='r+b') as cacheFile:
 		return pickle.load(cacheFile)
 
 def loadIsolates(cfg):
-	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
+	cacheFileName = getIsolatesCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
-		return loadIsolatesFromFile(cfg)
+		return loadIsolatesFromFile(cacheFileName)
 	else:
 		isolates = loadIsolatesFromDB(cfg.regions)
-		if cfg.isolateSubsetSize = "All":
+		if cfg.isolateSubsetSize == "All":
 			return isolates
 		else:
 			return getRandomSubset(isolates, cfg.isolateSubsetSize)

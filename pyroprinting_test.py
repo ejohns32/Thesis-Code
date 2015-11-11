@@ -25,10 +25,10 @@ class TestIsolate(unittest.TestCase):
 		self.assertAlmostEqual(.99, pyroprinting.pearsonFromDist(1.3784, 95), places=2)
 		self.assertAlmostEqual(1.3784, pyroprinting.distFromPearson(.99, 95), places=4)
 
-	def assertRegionsFloatAlmostEqual(self, expRegionsFloat, actRegionsFloat):
-		for (expRegion, expFloat), (actRegion, actFloat) in zip(expRegionsFloat, actRegionsFloat):
-			self.assertEqual(expRegion, actRegion)
-			self.assertAlmostEqual(expFloat, actFloat)
+	# def assertRegionsFloatAlmostEqual(self, expRegionsFloat, actRegionsFloat):
+	# 	for (expRegion, expFloat), (actRegion, actFloat) in zip(expRegionsFloat, actRegionsFloat):
+	# 		self.assertEqual(expRegion, actRegion)
+	# 		self.assertAlmostEqual(expFloat, actFloat)
 
 	def testRegionsDistAndPearson(self):
 		region1 = pyroprinting.Region("region1", 6)
@@ -38,16 +38,37 @@ class TestIsolate(unittest.TestCase):
 		iso1 = pyroprinting.Isolate("iso1", {region1: numpy.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0]), region2: numpy.array([1.0, -1.0, 1.0, -1.0])})
 		iso2 = pyroprinting.Isolate("iso2", {region1: numpy.array([1.0, 1.0, 1.0, -1.0, -1.0, -1.0]), region2: numpy.array([-1.0, 1.0, -1.0, 1.0])})
 
-		self.assertRegionsFloatAlmostEqual(iso1.regionsPearson(iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in iso1.regionsDist(iso2)])
-		self.assertRegionsFloatAlmostEqual(iso1.regionsDist(iso2), [(region, pyroprinting.distFromPearson(dist, region.dispCount)) for region, dist in iso1.regionsPearson(iso2)])
+		self.assertAlmostEqual((1 + -1 + 1 + 1 + -1 + 1)/6, iso1.regionPearson(iso2, region1))
+		self.assertAlmostEqual((-1 + -1 + -1 + -1)/4, iso1.regionPearson(iso2, region2))
 
-		self.assertRegionsFloatAlmostEqual(iso1.regionsPearson(iso2), iso2.regionsPearson(iso1))
-		self.assertRegionsFloatAlmostEqual([(region1, (1 + -1 + 1 + 1 + -1 + 1)/6), (region2, (-1 + -1 + -1 + -1)/4)], iso1.regionsPearson(iso2))
-		self.assertRegionsFloatAlmostEqual([(region1, 1), (region2, 1)], iso1.regionsPearson(iso1))
+		self.assertAlmostEqual(math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2), iso1.regionDist(iso2, region1))
+		self.assertAlmostEqual(math.sqrt(2**2 + 2**2 + 2**2 + 2**2), iso1.regionDist(iso2, region2))
 
-		self.assertRegionsFloatAlmostEqual(iso1.regionsDist(iso2), iso2.regionsDist(iso1))
-		self.assertRegionsFloatAlmostEqual([(region1, math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2)), (region2, math.sqrt(2**2 + 2**2 + 2**2 + 2**2))], iso1.regionsDist(iso2))
-		self.assertRegionsFloatAlmostEqual([(region1, 0), (region2, 0)], iso1.regionsDist(iso1))
+		for region in [region1, region2]:
+			self.assertAlmostEqual(iso1.regionPearson(iso2, region), pyroprinting.pearsonFromDist(iso1.regionDist(iso2, region), region.dispCount)) 
+			self.assertAlmostEqual(iso1.regionPearson(iso2, region), pyroprinting.pearsonFromDist(iso1.regionDist(iso2, region), region.dispCount)) 
+			self.assertAlmostEqual(iso1.regionDist(iso2, region), pyroprinting.distFromPearson(iso1.regionPearson(iso2, region), region.dispCount)) 
+
+			self.assertAlmostEqual(iso1.regionPearson(iso2, region), iso2.regionPearson(iso1, region))
+			self.assertAlmostEqual(1, iso1.regionPearson(iso1, region))
+
+			self.assertAlmostEqual(iso1.regionDist(iso2, region), iso2.regionDist(iso1, region))
+			self.assertAlmostEqual(0, iso1.regionDist(iso1, region))
+
+
+
+		# self.assertRegionsFloatAlmostEqual(iso1.regionsPearson(iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in iso1.regionsDist(iso2)])
+		# self.assertAlmostEqual(iso1.regionsPearson(iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in iso1.regionsDist(iso2)])
+		# self.assertRegionsFloatAlmostEqual(iso1.regionsDist(iso2), [(region, pyroprinting.distFromPearson(dist, region.dispCount)) for region, dist in iso1.regionsPearson(iso2)])
+
+		# self.assertRegionsFloatAlmostEqual(iso1.regionsPearson(iso2), iso2.regionsPearson(iso1))
+		# self.assertRegionsFloatAlmostEqual([(region1, (1 + -1 + 1 + 1 + -1 + 1)/6), (region2, (-1 + -1 + -1 + -1)/4)], iso1.regionsPearson(iso2))
+		# self.assertRegionsFloatAlmostEqual([(region1, 1), (region2, 1)], iso1.regionsPearson(iso1))
+
+		# self.assertRegionsFloatAlmostEqual(iso1.regionsDist(iso2), iso2.regionsDist(iso1))
+		# self.assertRegionsFloatAlmostEqual([(region1, math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2)), (region2, math.sqrt(2**2 + 2**2 + 2**2 + 2**2))], iso1.regionsDist(iso2))
+		# self.assertRegionsFloatAlmostEqual([(region1, 0), (region2, 0)], iso1.regionsDist(iso1))
+
 
 
 		# query = ("SELECT PearsonMatch(p1.pyroID, p2.pyroID, 95) FROM Pyroprints p1 JOIN Pyroprints p2 WHERE p1.appliedRegion = '16-23' AND p2.appliedRegion = '16-23' AND p1.pyroID < p2.pyroID AND p1.pyroID >= 167 AND p2.pyroID <= 170 ORDER BY p1.pyroID, p2.pyroID;")

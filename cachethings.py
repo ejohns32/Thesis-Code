@@ -1,7 +1,11 @@
 import pickle
 import os.path
 
+import config
 import pyroprinting
+import fullsearch
+import clusterEval
+import dbscan
 
 
 
@@ -28,11 +32,11 @@ def cacheAllIsolates(cfg):
 # 			pickle.dump(slicedIsolates, slicedFile)
 
 def cacheIsolateSubset(cfg):
-	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
+	cacheFileName = pyroprinting.getIsolatesCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
 		return
 
-	isolates = pyroprinting.loadIsolates()
+	isolates = pyroprinting.loadIsolatesFromFile("isolatesAll.pickle")
 
 	print("sampling subset of isolates of size {}...".format(cfg.isolateSubsetSize))
 	isolateSubset = pyroprinting.getRandomSubset(isolates, cfg.isolateSubsetSize)
@@ -42,11 +46,11 @@ def cacheIsolateSubset(cfg):
 
 
 def cacheNeighbors(cfg):
-	cacheFileName = "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, cfg.threshold)
+	cacheFileName = fullsearch.getNeighborsMapCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
 		return
 
-	isolates = pyroprinting.loadIsolates(cfg.isolateSubsetSize)
+	isolates = pyroprinting.loadIsolates(cfg)
 
 	print("calculating isolate neighbors at threshold {} for a subset of size {}...".format(cfg.threshold, cfg.isolateSubsetSize))
 	neighbors = fullsearch.computeNeighborsMap(isolates, cfg.radii)
@@ -60,30 +64,33 @@ def cacheNeighbors(cfg):
 
 
 def cacheRegionsPearsonMap(cfg):
-	cacheFileName = "pearsons{}.pickle".format(cfg.isolateSubsetSize)
-	if os.path.isfile(cacheFileName):
-		return
+	for region in cfg.regions:
+		cacheFileName = clusterEval.getPearsonMapCacheFileName(region, cfg)
+		if os.path.isfile(cacheFileName):
+			continue
 
-	isolates = pyroprinting.loadIsolates(cfg.isolateSubsetSize)
+		isolates = pyroprinting.loadIsolates(cfg)
 
-	print("calculating pairwise pearson correlations for a subset of size {}...".format(cfg.threshold, cfg.isolateSubsetSize))
-	regionsPearsonMap = getRegionsPearsonMap(isolates, cfg.regions)
+		print("calculating pairwise pearson correlations for a subset of size {} for region {}...".format(cfg.isolateSubsetSize, region))
+		pearsonMap = clusterEval.computePearsonMap(isolates, region)
 
-	with open(cacheFileName, mode='w+b') as cacheFile:
-		pickle.dump(regionsPearsonMap, cacheFile)
+		with open(cacheFileName, mode='w+b') as cacheFile:
+			pickle.dump(pearsonMap, cacheFile)
+
+		del pearsonMap # the garbage collector should free this now
+
 
 
 
 def cacheDBscanClusters(cfg):
-	cacheFileName = "dbscan{}.pickle".format(cfg.isolateSubsetSize)
+	cacheFileName = dbscan.getDBscanClustersCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
 		return
 
 	isolates = pyroprinting.loadIsolates(cfg)
-	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 
-	precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
-	clusters = dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
+	print("clustering for a subset of size {}...".format(cfg.isolateSubsetSize))
+	clusters = dbscan.computeDBscanClusters(isolates, cfg)
 
 	with open(cacheFileName, mode='w+b') as cacheFile:
 		pickle.dump(clusters, cacheFile)

@@ -1,5 +1,7 @@
 import collections
 import itertools
+import os.path
+import pickle
 
 import config
 import pyroprinting
@@ -246,30 +248,54 @@ def printClusters(clusters):
 		print("{}/{}: {}".foramt(i, len(clusters), cluster))
 		print()
 
+
+
+def computeDBscanClusters(isolates, cfg):
+	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
+	precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
+	return dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
+
+def getDBscanClustersCacheFileName(cfg):
+	return "dbscan{}.pickle".format(cfg.isolateSubsetSize)
+
+def loadDBscanClustersFromFile(cacheFileName):
+	with open(cacheFileName, mode='r+b') as cacheFile:
+		dbscanClusters = pickle.load(cacheFile)
+	return dbscanClusters
+
+def getDBscanClusters(isolates, cfg):
+	cacheFileName = getDBscanClustersCacheFileName(cfg)
+	if os.path.isfile(cacheFileName):
+		return loadDBscanClustersFromFile(cacheFileName)
+	else:
+		return computeDBscanClusters(isolates, cfg)
+
+
+
 if __name__ == '__main__':
 	cfg = config.loadConfig()
 	isolates = pyroprinting.loadIsolates(cfg)
-	# correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
+	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 
 	tree = spatial.Tree(isolates, cfg)
-	fullSearcher = fullsearch.FullSearcher(isolates)
-	# precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
+	# fullSearcher = fullsearch.FullSearcher(isolates)
+	precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
 
 	# spatialGetClusters = dbscan(tree, cfg.radii, cfg.minNeighbors)
 	spatialPopClusters = myDBscan(tree, cfg.radii, cfg.minNeighbors)
-	fullGetClusters = dbscan(fullSearcher, cfg.radii, cfg.minNeighbors)
+	# fullGetClusters = dbscan(fullSearcher, cfg.radii, cfg.minNeighbors)
 	# fullPopClusters = myDBscan(fullSearcher, cfg.radii, cfg.minNeighbors)
-	# preFullClusters = dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
+	preFullClusters = dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
 
 	# spatialGetClusters = {frozenset(cluster) for cluster in spatialGetClusters}
 	spatialPopClusters = {frozenset(cluster) for cluster in spatialPopClusters}
-	fullGetClusters = {frozenset(cluster) for cluster in fullGetClusters}
+	# fullGetClusters = {frozenset(cluster) for cluster in fullGetClusters}
 	# fullPopClusters = {frozenset(cluster) for cluster in fullPopClusters}
-	# preFullClusters = {frozenset(cluster) for cluster in preFullClusters}
+	preFullClusters = {frozenset(cluster) for cluster in preFullClusters}
 
 	# printClusters(preFullClusters)
 	# assert len(getMultipleClusterPoints(isolates, preFullClusters)) == 0
-	assert spatialPopClusters == fullGetClusters
+	assert spatialPopClusters == preFullClusters
 	# assert spatialGetClusters == spatialPopClusters
 	# assert fullGetClusters == fullPopClusters
 	# assert verifyClusters(isolates, correctNeighbors, cfg.minNeighbors, clusters)

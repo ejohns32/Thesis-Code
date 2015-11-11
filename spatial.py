@@ -102,7 +102,7 @@ class BoundingBoxFilter(SpatialFilter):
 		self.boundingBox = boundingBox
 
 	def fromIsolates(region, isolates):
-		boundingBox = BoundingBox.bound((isolate.regionsPyroprint[region] for isolate in isolates), region.dispCount)
+		boundingBox = BoundingBox.bound((isolate.regionsPyroprintZscores[region] for isolate in isolates), region.dispCount)
 		return BoundingBoxFilter(region, set(), boundingBox)
 
 	def fromChildrenFilters(region, chidlrenFilters):
@@ -110,17 +110,17 @@ class BoundingBoxFilter(SpatialFilter):
 		return BoundingBoxFilter(region, chidlrenFilters, boundingBox)
 
 	def update(self, isolates):
-		self.boundingBox = BoundingBox.bound((isolate.regionsPyroprint[self.region] for isolate in isolates), self.region.dispCount)
+		self.boundingBox = BoundingBox.bound((isolate.regionsPyroprintZscores[self.region] for isolate in isolates), self.region.dispCount)
 
 	def aggregate(self):
 		self.boundingBox = BoundingBox.combineAll((child.boundingBox for child in self.children), self.region.dispCount)
 
 
 	def containedByQuery(self, queryIsolate, radii):
-		return self.boundingBox.containedByBall(queryIsolate.regionsPyroprint[self.region], radii[self.region])
+		return self.boundingBox.containedByBall(queryIsolate.regionsPyroprintZscores[self.region], radii[self.region])
 
 	def intersectsQuery(self, queryIsolate, radii):
-		return self.boundingBox.intersectsBall(queryIsolate.regionsPyroprint[self.region], radii[self.region])
+		return self.boundingBox.intersectsBall(queryIsolate.regionsPyroprintZscores[self.region], radii[self.region])
 
 
 
@@ -156,7 +156,7 @@ class PlanePartitionFilter(SpatialFilter):
 			self.queryDist = 0
 		else:
 			if self.parent.planeQueryValue is None:
-				self.parent.planeQueryValue = self.parent.plane.valueOf(queryIsolate.regionsPyroprint[self.region])
+				self.parent.planeQueryValue = self.parent.plane.valueOf(queryIsolate.regionsPyroprintZscores[self.region])
 			anscDist = self.parent.queryDist
 			assert anscDist is not None
 
@@ -372,14 +372,14 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 		regionsSplitPlane = []
 		regionsSplitValue = []
 		for region in cfg.regions:
-			dimSum = sum((isolate.regionsPyroprint[region] for isolate in isolates), numpy.zeros(region.dispCount))
+			dimSum = sum((isolate.regionsPyroprintZscores[region] for isolate in isolates), numpy.zeros(region.dispCount))
 			dimAvg = dimSum / len(isolates)
-			dimDevSum = sum(((dimAvg-isolate.regionsPyroprint[region]) ** 2 for isolate in isolates), numpy.zeros(region.dispCount))
+			dimDevSum = sum(((dimAvg-isolate.regionsPyroprintZscores[region]) ** 2 for isolate in isolates), numpy.zeros(region.dispCount))
 			dimStdDev = numpy.sqrt(dimDevSum / len(isolates))
 			
 			mainDim = max(regionsUnusedDims[region], key=lambda dim: dimStdDev[dim])
 			# mainDim = max(range(dispCount), key=lambda dim: dimStdDev[dim])
-			correlations = numpy.divide(sum(isolate.regionsPyroprint[region] * isolate.regionsPyroprint[region][mainDim] for isolate in isolates) - dimSum * dimSum[mainDim] / len(isolates), ((len(isolates) - 1) * dimStdDev * dimStdDev[mainDim]))
+			correlations = numpy.divide(sum(isolate.regionsPyroprintZscores[region] * isolate.regionsPyroprintZscores[region][mainDim] for isolate in isolates) - dimSum * dimSum[mainDim] / len(isolates), ((len(isolates) - 1) * dimStdDev * dimStdDev[mainDim]))
 
 			splitDims = sorted(regionsUnusedDims[region], key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:cfg.dimsPerSplit]
 			# splitDims = sorted(range(dispCount), key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:cfg.dimsPerSplit]
@@ -391,14 +391,14 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 
 
 			splitPlane = MultiDimPlane(splitDims, dimCoeffs)
-			isolates.sort(key=lambda isolate: splitPlane.valueOf(isolate.regionsPyroprint[region]))
-			splitValue = (splitPlane.valueOf(isolates[len(isolates)//2].regionsPyroprint[region]) + splitPlane.valueOf(isolates[len(isolates)//2 + 1].regionsPyroprint[region])) / 2
+			isolates.sort(key=lambda isolate: splitPlane.valueOf(isolate.regionsPyroprintZscores[region]))
+			splitValue = (splitPlane.valueOf(isolates[len(isolates)//2].regionsPyroprintZscores[region]) + splitPlane.valueOf(isolates[len(isolates)//2 + 1].regionsPyroprintZscores[region])) / 2
 
 			regionsSplitPlane.append(splitPlane)
 			regionsSplitValue.append(splitValue)
 
 		for isolate in isolates:
-			truth = tuple(bool(splitPlane.valueOf(isolate.regionsPyroprint[region]) < splitValue) for region, splitPlane, splitValue in zip(cfg.regions, regionsSplitPlane, regionsSplitValue))
+			truth = tuple(bool(splitPlane.valueOf(isolate.regionsPyroprintZscores[region]) < splitValue) for region, splitPlane, splitValue in zip(cfg.regions, regionsSplitPlane, regionsSplitValue))
 			childrenIsolates[truth].append(isolate)
 
 		children = []
@@ -455,17 +455,17 @@ def testSpatial(isolates, tree, correctNeighbors, cfg):
 			if len(resultR) > 0:
 				nonZeroCorrectCount += 1
 		else:
-			print("\t{} ----- {}".format([(extraIsolate, isolate.regionsDist(extraIsolate)) for extraIsolate in resultR - correctR], [(missingIsolate, isolate.regionsDist(missingIsolate)) for missingIsolate in correctR -resultR]))
+			print("\t{} ----- {}".format([(extraIsolate, [isolate.regionDist(extraIsolate, region) for region in cfg.regions]) for extraIsolate in resultR - correctR], [(missingIsolate, [isolate.regionDist(missingIsolate, region) for region in cfg.regions]) for missingIsolate in correctR -resultR]))
 
-	print("{}/{}".format(nonZeroCorrectCount, nonZeroCount))
-	print("{}/{}".format(correctCount, queryCount))
-	print("{},{}".format(extraCount, missingCount))
+	print("total correct: {}/{}".format(correctCount, queryCount))
+	print("nonEmpty correct: {}/{}".format(nonZeroCorrectCount, nonZeroCount))
+	print("total extra: {}, total missing: {}".format(extraCount, missingCount))
 
 if __name__ == '__main__':
 	cfg = config.loadConfig()
 	isolates = pyroprinting.loadIsolates(cfg)
 	tree = Tree(isolates, cfg)
-	correctNeighbors = fullsearch.getNeighborsMap(isolate, cfg)
+	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 
 	testSpatial(isolates, tree, correctNeighbors, cfg)
 	# cProfile.run("testSpatial(isolates, tree, correctNeighbors, cfg)")

@@ -1,5 +1,6 @@
 import pickle
 import cProfile
+import os.path
 
 import config
 import pyroprinting
@@ -62,17 +63,20 @@ def computeNeighborsMap(isolates, radii):
 
 	return neighbors
 
-def loadNeighborsMapFromFile(cfg):
-	cacheFileName = "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, cfg.threshold)
+def getNeighborsMapCacheFileName(cfg):
+	return "neighbors{}.pickle".format(cfg.isolateSubsetSize)
+	# return "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, '_'.join(str(region.pSimThresholdAlpha) for region in  cfg.regions))
+
+def loadNeighborsMapFromFile(cacheFileName):
 	with open(cacheFileName, mode='r+b') as cacheFile:
 		neighborMap = pickle.load(cacheFile)
 	return neighborMap
 
 
 def getNeighborsMap(isolates, cfg):
-	cacheFileName = "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, cfg.threshold)
+	cacheFileName = getNeighborsMapCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
-		return loadNeighborsMapFromFile(cfg)
+		return loadNeighborsMapFromFile(cacheFileName)
 	else:
 		return computeNeighborsMap(isolates, cfg.radii)
 

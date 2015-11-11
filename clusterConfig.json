@@ -2,14 +2,21 @@
 	"regions": [
 		{
 			"name": "23-5",
-			"dispCount": 93
+			"dispCount": 93,
+			"pearsonSimilarityThresholdAlpha": 0.995,
+			"pearsonSimilarityThresholdBeta": 0.99,
+			"betaDistributionAlpha": 386.65,
+			"betaDistributionBeta": 1.36074
 		}, {
 			"name": "16-23",
-			"dispCount": 95
+			"dispCount": 95,
+			"pearsonSimilarityThresholdAlpha": 0.995,
+			"pearsonSimilarityThresholdBeta": 0.99,
+			"betaDistributionAlpha": 668.1768,
+			"betaDistributionBeta": 1.532336
 		}
 	],
-	"threshold": 0.995,
-	"minNeighbors": 5,
+	"minNeighbors": 1,
 	"pointsPerLeaf": 8,
 	"dimsPerSplit": 10,
 	"isolateSubsetSize": 3000

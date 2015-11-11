@@ -1,5 +1,11 @@
+import os.path
+import pickle
+
 from scipy import stats
 
+import config
+import pyroprinting
+import dbscan
 
 def getClusterPearsons(pearsonMap, cluster):
 	pearsons = []
@@ -7,7 +13,7 @@ def getClusterPearsons(pearsonMap, cluster):
 	clusterList = list(cluster)
 	for i, iso1 in enumerate(clusterList):
 		for iso2 in clusterList[i+1:]:
-			pearsons.append(pearsonMap[(iso1, iso2)])
+			pearsons.append(pearsonMap[iso1, iso2] if iso1 < iso2 else pearsonMap[iso2, iso1])
 
 	return pearsons
 
@@ -79,7 +85,11 @@ def getClusterMap(clusters):
 
 	for cluster in clusters:
 		for isolate in cluster:
-			assert isolate not in clustersMap
+			# assert isolate not in clustersMap
+			if isolate in clustersMap:
+				print("\n\tisolate {} in multiple clusters".format(isolate))
+				print(clustersMap[isolate])
+				print(cluster)
 			clustersMap[isolate] = cluster
 
 	return clustersMap
@@ -91,15 +101,15 @@ def thresholdCorrectness(isolates, pearsonMap, clusters, dsThreshold, ddThreshol
 
 	for i, iso1 in enumerate(isolates):
 		for iso2 in isolates[i+1:]:
-			pearson = pearsonMap[(iso1, iso2)]
+			pearson = pearsonMap[iso1, iso2] if iso1 < iso2 else pearsonMap[iso2, iso1]
 
 			if pearson >= dsThreshold:
 				totDS += 1
-				if clusterMap[iso1] == clusterMap[iso2]:
+				if iso1 in clusterMap and iso2 in clusterMap and clusterMap[iso1] == clusterMap[iso2]:
 					sameDS += 1
 			elif pearson <= ddThreshold:
 				totDD += 1
-				if clusterMap[iso1] != clusterMap[iso2]:
+				if iso1 not in clusterMap or iso2 not in clusterMap or clusterMap[iso1] != clusterMap[iso2]:
 					diffDD += 1
 			else:
 				totSquishy += 1
@@ -155,29 +165,64 @@ def similarityIndexes(isolates, clusters1, clusters2):
 
 	return randIndex, jaccardIndex, anotherIndex
 
-def computeRegionsPearsonMap(isolates, regions):
-	regionsPearsonMap = {region: dict() for region in cfg.regions}
+
+
+
+
+def computeRegionPearsonMap(isolates, region):
+	# regionsPearsonMap = {region: dict() for region in regions}
+	pearsonMap = dict()
 	for i, iso1 in enumerate(isolates):
 		print("{}/{}".format(i, len(isolates)))
 		for iso2 in isolates[i+1:]:
-			for region, pearson in iso1.regionsPearson(iso2).items():
-				regionsPearsonMap[region][(iso1, iso2)] = regionsPearsonMap[region][(iso2, iso1)] = pearson
+			# for region in regions:
+			pearson = iso1.regionPearson(iso2, region)
+			if iso1 < iso2:
+				# regionsPearsonMap[region][iso1, iso2] = pearson
+				pearsonMap[iso1, iso2] = pearson
+			else:
+				# regionsPearsonMap[region][iso2, iso1] = pearson
+				pearsonMap[iso2, iso1] = pearson
 
-	return regionsPearsonMap
+	return pearsonMap
 
-def loadRegionsPearsonMapFromFile(cfg):
-	cacheFileName = "pearsons{}.pickle".format(cfg.isolateSubsetSize)
+def getPearsonMapCacheFileName(region, cfg):
+	return "pearsons{}R{}.pickle".format(cfg.isolateSubsetSize, region)
+
+def loadPearsonMapFromFile(cacheFileName):
 	with open(cacheFileName, mode='r+b') as cacheFile:
-		regionsPearsonMap = pickle.load(cacheFile)
-	return regionsPearsonMap
+		pearsonMap = pickle.load(cacheFile)
+	return pearsonMap
 
-def getRegionsPearsonMap(isolates, cfg):
-	cacheFileName = "pearsons{}.pickle".format(cfg.isolateSubsetSize)
+def getPearsonMap(isolates, region, cfg):
+	cacheFileName = getPearsonMapCacheFileName(region, cfg)
 	if os.path.isfile(cacheFileName):
-		return loadRegionsPearsonMapFromFile(cfg)
+		return loadPearsonMapFromFile(cacheFileName)
 	else:
-		return computeRegionsPearsonMap(isolates, cfg.regions)
+		return computeRegionPearsonMap(isolates, region)
 
 
 if __name__ == '__main__':
-	pass
+	cfg = config.loadConfig()
+	isolates = pyroprinting.loadIsolates(cfg)
+
+	dbscanClusters = dbscan.getDBscanClusters(isolates, cfg)
+
+	for region in cfg.regions:
+		print(region)
+
+		betaDistribution = stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta)
+		pearsonMap = getPearsonMap(isolates, region, cfg)
+
+		print("\nthresholdCorrectness: {}".format(
+			thresholdCorrectness(isolates, pearsonMap, dbscanClusters, region.pSimThresholdAlpha, region.pSimThresholdBeta)))
+		print("\ndistributionCorrectness: {}".format(
+			distributionCorrectness(pearsonMap, dbscanClusters, betaDistribution)))
+		print("\nindividualClusterDistributionCorrectness: {}".format(
+			individualClusterDistributionCorrectness(pearsonMap, dbscanClusters, betaDistribution)))
+		print("\npairedClustersDistributionCorrectness: {}".format(
+			pairedClustersDistributionCorrectness(pearsonMap, dbscanClusters, betaDistribution)))
+
+		del pearsonMap # the garbage collector should free this now
+
+

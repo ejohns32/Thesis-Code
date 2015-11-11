@@ -30,14 +30,14 @@ class TestDistributionMatch(unittest.TestCase):
 		betaValues = list(self.betaDistribution.ppf(numpy.linspace(0, 1, num=(strainsSwitchIndex)**2 / 2 + 2)))[1:-1]
 		for i in range(strainsStartIndex, strainsSwitchIndex):
 			for j in range(i+1, strainsSwitchIndex):
-				self.pearsonMap[i, j] = self.pearsonMap[j, i] = betaValues.pop()
+				self.pearsonMap[i, j] = betaValues.pop()
 			for j in range(strainsSwitchIndex, strainsEndIndex):
-				self.pearsonMap[i, j] = self.pearsonMap[j, i] = random.uniform(0.9, 0.99)
+				self.pearsonMap[i, j] = random.uniform(0.9, 0.99)
 
 		betaValues = list(self.betaDistribution.ppf(numpy.linspace(0, 1, num=(strainsEndIndex - strainsSwitchIndex)**2 / 2 + 2)))[1:-1]
 		for i in range(strainsSwitchIndex, strainsEndIndex):
 			for j in range(i+1, strainsEndIndex):
-				self.pearsonMap[i, j] = self.pearsonMap[j, i] = betaValues.pop()
+				self.pearsonMap[i, j] = betaValues.pop()
 
 
 		# self.pearsonMap = {(1,2): .996, (1,3): .997, (1,4): .998, (1,5): .980, (1,6): .900,
@@ -98,8 +98,8 @@ class TestThresholdCorrectness(unittest.TestCase):
 		                            (1, 2): .999, (1, 3): .999, (1, 4): .999,
 		                                          (2, 3): .987, (2, 4): .987,
 		                                                        (3, 4): .987}
-		for (first, second), pearson in list(pearsonMap.items()):
-			pearsonMap[second, first] = pearson
+		# for (first, second), pearson in list(pearsonMap.items()):
+		# 	pearsonMap[second, first] = pearson
 
 		# totSquishy = 3, sameDS = 3, diffDS = 1, sameDD = 1, diffDD = 2
 		clusters = [{0, 4}, {1, 2, 3}]

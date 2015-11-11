@@ -34,7 +34,7 @@ Some files have unit tests while others just check equality with alternate imple
 
 THIS FEATURE IS ONLY INTENDED FOR FASTER DEBUGGING, TESTING and TUNING
 
-You can run cachethings.py to cache calculations things to disk for performance or consistency between multiple runs. If the database is updated or you change the config, it'll invalidate the cache. For now that means you have to manually delete the cached files and run cachethings.py again.
+You can run cachethings.py to cache calculations things to disk for performance or consistency between multiple runs. If the database is updated or you change the config, it'll invalidate the cache. cachethings.py only caches things that aren't already cached which means you have to manually delete invalidated cached files and run cachethings.py again.
 
 
 
@@ -49,14 +49,20 @@ Here is a commented example of clusterConfig.json:
 	"regions": [				# if you change the order or the contents you'll need to recache everything
 		{
 			"name": "23-5",
-			"dispCount": 93
+			"dispCount": 93,
+			"pearsonSimilarityThresholdAlpha": 0.995,
+			"pearsonSimilarityThresholdBeta": 0.99,
+			"betaDistributionAlpha": 386.65,
+			"betaDistributionBeta": 1.36074
 		}, {
 			"name": "16-23",
-			"dispCount": 95
+			"dispCount": 95,
+			"pearsonSimilarityThresholdAlpha": 0.995,
+			"pearsonSimilarityThresholdBeta": 0.99,
+			"betaDistributionAlpha": 668.1768,
+			"betaDistributionBeta": 1.532336
 		}
 	],
-	"threshold": 0.995,			# dbscan param: defined as pearson correlation
-								# but internally is converted to zScore distance
 
 	"minNeighbors": 5,			# dbscan param: values of 1 or 2 make dbscan
 								# degenerate to single link agglomerative
