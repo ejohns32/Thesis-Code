@@ -155,21 +155,28 @@ def similarityIndexes(isolates, clusters1, clusters2):
 
 	return randIndex, jaccardIndex, anotherIndex
 
-
-
-
-
-def getRegionsPearsonMap(isolates, regions):
-	regionsPearsonMap = {region: dict() for region in regions}
-
+def computeRegionsPearsonMap(isolates, regions):
+	regionsPearsonMap = {region: dict() for region in cfg.regions}
 	for i, iso1 in enumerate(isolates):
+		print("{}/{}".format(i, len(isolates)))
 		for iso2 in isolates[i+1:]:
 			for region, pearson in iso1.regionsPearson(iso2).items():
 				regionsPearsonMap[region][(iso1, iso2)] = regionsPearsonMap[region][(iso2, iso1)] = pearson
 
 	return regionsPearsonMap
 
+def loadRegionsPearsonMapFromFile(cfg):
+	cacheFileName = "pearsons{}.pickle".format(cfg.isolateSubsetSize)
+	with open(cacheFileName, mode='r+b') as cacheFile:
+		regionsPearsonMap = pickle.load(cacheFile)
+	return regionsPearsonMap
 
+def getRegionsPearsonMap(isolates, cfg):
+	cacheFileName = "pearsons{}.pickle".format(cfg.isolateSubsetSize)
+	if os.path.isfile(cacheFileName):
+		return loadRegionsPearsonMapFromFile(cfg)
+	else:
+		return computeRegionsPearsonMap(isolates, cfg.regions)
 
 
 if __name__ == '__main__':

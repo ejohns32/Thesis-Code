@@ -2,6 +2,7 @@ import mysql.connector
 import pickle
 import json
 import numpy
+import os.path
 
 import config
 
@@ -38,13 +39,13 @@ class Isolate:
 		self.regionsPyroprint = regionsPyroprint
 
 	def regionsDist(self, other):
-		return {region: numpy.linalg.norm(other.regionsPyroprint[region] - self.regionsPyroprint[region]) for region in set(self.regionsPyroprint.keys()) & set(other.regionsPyroprint.keys())}
+		return [(region, numpy.linalg.norm(other.regionsPyroprint[region] - self.regionsPyroprint[region])) for region in set(self.regionsPyroprint.keys()) & set(other.regionsPyroprint.keys())]
+
+	def regionsPearson(self, other):
+		return [(region, numpy.sum(self.regionsPyroprint[region] * other.regionsPyroprint[region]) / region.dispCount) for region in set(self.regionsPyroprint.keys()) & set(other.regionsPyroprint.keys())]
 
 	def isWithinRadiiOf(self, other, radii):
-		# regionsDist = self.regionsDist(other)
-		# return all(regionsDist[region] <= radii[region] for region in radii.keys())
-		# print([(region.name, region.dispCount) for region in other.regionsPyroprint.keys()], [(region.name, region.dispCount) for region in self.regionsPyroprint.keys()], [(region.name, region.dispCount) for region in radii.keys()])
-		return all((numpy.linalg.norm(other.regionsPyroprint[region] - self.regionsPyroprint[region]) <= radii[region] for region in radii.keys()))
+		return all((numpy.linalg.norm(other.regionsPyroprint[region] - self.regionsPyroprint[region]) <= radius for region, radius in radii.items()))
 
 	def __repr__(self):
 		return self.name
@@ -59,17 +60,11 @@ class Isolate:
 		return hash(self.name)
 
 
-
-
-def loadIsolatesFromDB():
+def loadIsolatesFromDB(regions):
 	with open("mysqlConfig.json", mode='r') as mysqlConfigJson:
 		mysqlConfig = json.load(mysqlConfigJson)
 
-	cfg = config.loadConfig()
-	regionNameLookup = {region.name: region for region in cfg.regions}
-
-	# regions = [('23-5', 93), ('16-23', 95)]
-	data = dict()
+	regionNameLookup = {region.name: region for region in regions}
 
 	cnx = mysql.connector.connect(**mysqlConfig)
 	# cursor = cnx.cursor(buffered=True)
@@ -82,6 +77,7 @@ def loadIsolatesFromDB():
 
 	cursor.execute(query)
 
+	data = dict()
 	for (isoID, region, position, zHeight) in cursor:
 		if isoID not in data:
 			data[isoID] = {region: []}
@@ -98,7 +94,7 @@ def loadIsolatesFromDB():
 	toDelete = []
 
 	for isoID in data.keys():
-		for region in cfg.regions:
+		for region in regions:
 			if region.name not in data[isoID]:
 				toDelete.append(isoID)
 				break
@@ -108,11 +104,19 @@ def loadIsolatesFromDB():
 	for isoID in toDelete:
 		del data[isoID]
 
-	print("{}/{}".format(len(data), len(data) + len(toDelete)))
+	print("{}/{} isolates had pyroprints for all regions".format(len(data), len(data) + len(toDelete)))
 
 	return [Isolate(isoID, {regionNameLookup[regionName]: numpy.array(pyroprint) for regionName, pyroprint in regionsPyroprintMap.items()}) for isoID, regionsPyroprintMap in data.items()]
 
-def loadIsolatesFromFile(subsetSize = "All"):
-	with open("isolates{}.pickle".format(subsetSize), mode='r+b') as isolatesFile:
-		return pickle.load(isolatesFile)
+def loadIsolatesFromFile(cfg):
+	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
+	with open(cacheFileName, mode='r+b') as cacheFile:
+		return pickle.load(cacheFile)
+
+def loadIsolates(cfg):
+	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
+	if os.path.isfile(cacheFileName):
+		return loadIsolatesFromFile(cfg.regions)
+	else:
+		return loadIsolatesFromDB(cfg)
 

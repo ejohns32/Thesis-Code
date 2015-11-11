@@ -313,14 +313,14 @@ class InnerNode(Node):
 
 
 class Tree:
-	def __init__(self, clusterConfig, isolates):
+	def __init__(self, isolates, cfg):
 		# self.treeConfig = treeConfig
 		self.isolates = isolates
 
-		regionsAllDims = {region: range(region.dispCount) for region in clusterConfig.regions}
-		dummyRegionsIsLeftOfParentSplit = tuple(None for region in clusterConfig.regions)
-		dummyFilterCollector = {(filterType, region): [] for region in clusterConfig.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
-		self.root = splitMultiRegionCorrelatedDims(isolates, clusterConfig, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
+		regionsAllDims = {region: range(region.dispCount) for region in cfg.regions}
+		dummyRegionsIsLeftOfParentSplit = tuple(None for region in cfg.regions)
+		dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+		self.root = splitMultiRegionCorrelatedDims(isolates, cfg, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
 
 	def __iter__(self):
 		return iter(self.isolates)
@@ -463,10 +463,9 @@ def testSpatial(isolates, tree, correctRange, cfg):
 
 if __name__ == '__main__':
 	cfg = config.loadConfig()
-	isolates = pyroprinting.loadIsolatesFromFile(cfg.isolateSubsetSize)
-	tree = Tree(cfg, isolates)
-	correctNeighbors = fullsearch.loadNeighborMapFromFile(cfg.isolateSubsetSize, cfg.threshold)
-
+	isolates = pyroprinting.loadIsolates(cfg)
+	tree = Tree(isolates, cfg)
+	correctNeighbors = fullsearch.getNeighborsMap(isolate, cfg)
 
 	testSpatial(isolates, tree, correctNeighbors, cfg)
 	# cProfile.run("testSpatial(isolates, tree, correctNeighbors, cfg)")

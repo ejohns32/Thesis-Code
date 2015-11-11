@@ -51,8 +51,7 @@ class PrecomputedSearcher:
 		return self.neighborMap[queryIsolate]
 
 
-
-def precomputeNeighbors(isolates, radii):
+def computeNeighborsMap(isolates, radii):
 	neighbors = {isolate: set() for isolate in isolates}
 	for i, iso1 in enumerate(isolates):
 		print("{}/{}".format(i, len(isolates)))
@@ -60,28 +59,20 @@ def precomputeNeighbors(isolates, radii):
 			if iso1.isWithinRadiiOf(iso2, radii):
 				neighbors[iso1].add(iso2)
 				neighbors[iso2].add(iso1)
+
 	return neighbors
 
-
-def loadNeighborMapFromFile(isolateSubsetSize, threshold):
-	with open("neighbors{}T{}.pickle".format(isolateSubsetSize, threshold), mode='r+b') as correctFile:
-		neighborMap = pickle.load(correctFile)
+def loadNeighborsMapFromFile(cfg):
+	cacheFileName = "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, cfg.threshold)
+	with open(cacheFileName, mode='r+b') as cacheFile:
+		neighborMap = pickle.load(cacheFile)
 	return neighborMap
 
 
+def getNeighborsMap(isolates, cfg):
+	cacheFileName = "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, cfg.threshold)
+	if os.path.isfile(cacheFileName):
+		return loadNeighborsMapFromFile(cfg)
+	else:
+		return computeNeighborsMap(isolates, cfg.radii)
 
-
-if __name__ == '__main__':
-	cfg = config.loadConfig()
-	isolates = pyroprinting.loadIsolatesFromFile(cfg.isolateSubsetSize)
-
-	neighbors = precomputeNeighbors(isolates, cfg.radii)
-	# cProfile.run("neighbors = precomputeNeighbors(isolates, cfg.radii)")
-
-	print("size: {}".format(len(neighbors)))
-	avgMatches = sum(len(matches) for _, matches in neighbors.items()) / len(neighbors)
-	print("avgMatches: {}".format(avgMatches))
-
-	# if len(sys.argv) == 1:
-	with open("neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, cfg.threshold), mode='w+b') as correctFile:
-		pickle.dump(neighbors, correctFile)
