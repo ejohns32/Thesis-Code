@@ -428,7 +428,7 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 
 
 
-def testSpatial(isolates, tree, correctRange, cfg):
+def testSpatial(isolates, tree, correctNeighbors, cfg):
 	queryIsolates = set(isolates)
 	queryCount = len(queryIsolates)
 
@@ -440,7 +440,7 @@ def testSpatial(isolates, tree, correctRange, cfg):
 
 	for i, isolate in enumerate(queryIsolates):
 		resultR = tree.getNeighborsOf(isolate, cfg.radii)
-		correctR = correctRange[isolate]
+		correctR = correctNeighbors[isolate]
 
 		if len(resultR) > 0:
 			nonZeroCount += 1

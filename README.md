@@ -67,6 +67,7 @@ Here is a commented example of clusterConfig.json:
 	"dimsPerSplit": 10,			# spatial index param
 
 	"isolateSubsetSize": 3000	# size of randomly sampled subset to use.
-								# run cachethings.py for consistency.
+								# set to "All" to use all isolates
+								# run cachethings.py for consistency between timing runs.
 								# changing this does not invalidate other cached subsets
 }

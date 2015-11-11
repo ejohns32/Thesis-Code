@@ -1,9 +1,11 @@
-import mysql.connector
 import pickle
 import json
-import numpy
 import os.path
 import math
+import random
+
+import mysql.connector
+import numpy
 
 import config
 
@@ -117,6 +119,9 @@ def loadIsolatesFromDB(regions):
 
 	return [Isolate(isoID, {regionNameLookup[regionName]: numpy.array(pyroprint) for regionName, pyroprint in regionsPyroprintMap.items()}) for isoID, regionsPyroprintMap in data.items()]
 
+def getRandomSubset(isolates, isolateSubsetSize):
+	list(random.sample(isolates, isolateSubsetSize))
+
 def loadIsolatesFromFile(cfg):
 	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
 	with open(cacheFileName, mode='r+b') as cacheFile:
@@ -125,7 +130,11 @@ def loadIsolatesFromFile(cfg):
 def loadIsolates(cfg):
 	cacheFileName = "isolates{}.pickle".format(cfg.isolateSubsetSize)
 	if os.path.isfile(cacheFileName):
-		return loadIsolatesFromFile(cfg.regions)
+		return loadIsolatesFromFile(cfg)
 	else:
-		return loadIsolatesFromDB(cfg)
+		isolates = loadIsolatesFromDB(cfg.regions)
+		if cfg.isolateSubsetSize = "All":
+			return isolates
+		else:
+			return getRandomSubset(isolates, cfg.isolateSubsetSize)
 

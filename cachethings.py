@@ -1,4 +1,3 @@
-import random
 import pickle
 import os.path
 
@@ -36,7 +35,7 @@ def cacheIsolateSubset(cfg):
 	isolates = pyroprinting.loadIsolates()
 
 	print("sampling subset of isolates of size {}...".format(cfg.isolateSubsetSize))
-	isolateSubset = list(random.sample(isolates, cfg.isolateSubsetSize))
+	isolateSubset = pyroprinting.getRandomSubset(isolates, cfg.isolateSubsetSize)
 	with open(cacheFileName, mode='w+b') as cacheFile:
 		pickle.dump(isolateSubset, cacheFile)
 
