@@ -25,18 +25,17 @@ def getInterClusterPearsons(pearsonMap, clusters):
 
 	return pearsons
 
-# call twice with an pearsonMap for each region
 def distributionSimilarity(pearsonMap, clusters1, clusters2):
 	ksStat, pValue = stats.ks_2samp(getInterClusterPearsons(pearsonMap, clusters1), getInterClusterPearsons(pearsonMap, clusters2))
 	return pValue
 
 
 
-#betaDistribution = stats.beta(distAlpha, distBeta)
 def distributionCorrectness(pearsonMap, clusters, betaDistribution):
 	ksStat, pValue = stats.kstest(getInterClusterPearsons(pearsonMap, clusters), betaDistribution.cdf)
 	return pValue
 
+# TODO: try looking at average chance in addition to complete chance
 def individualClusterDistributionCorrectness(pearsonMap, clusters, betaDistribution):
 	# TODO: double check that this is statistically valid
 	# null hypothesis: all individual clusters fit
@@ -54,6 +53,7 @@ def individualClusterDistributionCorrectness(pearsonMap, clusters, betaDistribut
 
 	return chanceNoneReject
 
+# TODO: try looking at average chance in addition to complete chance
 # seems to need large clusters to work
 def pairedClustersDistributionCorrectness(pearsonMap, clusters, betaDistribution):
 	# TODO: double check that this is statistically valid
@@ -94,7 +94,7 @@ def getClusterMap(clusters):
 
 	return clustersMap
 
-# call twice with an pearsonMap for each region
+# TODO: look at both regions at once and only count same if both regions are definitely similar
 def thresholdCorrectness(isolates, pearsonMap, clusters, dsThreshold, ddThreshold):
 	sameDS = diffDD = totDS = totDD = totSquishy = 0
 	clusterMap = getClusterMap(clusters)

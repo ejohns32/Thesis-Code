@@ -9,11 +9,18 @@ import pyroprinting
 
 
 class TestIsolate(unittest.TestCase):
-	# def setUp(self):
-	# 	with open("mysqlConfig.json", mode='r') as mysqlConfigJson:
-	# 		mysqlConfig = json.load(mysqlConfigJson)
+	def setUp(self):
+		self.region1 = pyroprinting.Region("region1", 6, 0, 0, 0, 0)
+		self.region2 = pyroprinting.Region("region2", 4, 0, 0, 0, 0)
 
-	# 	self.cnx = mysql.connector.connect(**mysqlConfig)
+		# Note: not all arrays are valid zScore arrays. Pearson from zscores requires such a valid array.
+		self.iso1 = pyroprinting.Isolate("iso1", {self.region1: numpy.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0]), self.region2: numpy.array([1.0, -1.0, 1.0, -1.0])})
+		self.iso2 = pyroprinting.Isolate("iso2", {self.region1: numpy.array([1.0, 1.0, 1.0, -1.0, -1.0, -1.0]), self.region2: numpy.array([-1.0, 1.0, -1.0, 1.0])})
+
+		# with open("mysqlConfig.json", mode='r') as mysqlConfigJson:
+		# 	mysqlConfig = json.load(mysqlConfigJson)
+
+		# self.cnx = mysql.connector.connect(**mysqlConfig)
 
 	# def tearDown(self):
 	# 	self.cnx.close()
@@ -31,43 +38,36 @@ class TestIsolate(unittest.TestCase):
 	# 		self.assertAlmostEqual(expFloat, actFloat)
 
 	def testRegionsDistAndPearson(self):
-		region1 = pyroprinting.Region("region1", 6)
-		region2 = pyroprinting.Region("region2", 4)
+		self.assertAlmostEqual((1 + -1 + 1 + 1 + -1 + 1)/6, self.iso1.regionPearson(self.iso2, self.region1))
+		self.assertAlmostEqual((-1 + -1 + -1 + -1)/4, self.iso1.regionPearson(self.iso2, self.region2))
 
-		# Note: not all arrays are valid zScore arrays. Pearson from zscores requires such a valid array.
-		iso1 = pyroprinting.Isolate("iso1", {region1: numpy.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0]), region2: numpy.array([1.0, -1.0, 1.0, -1.0])})
-		iso2 = pyroprinting.Isolate("iso2", {region1: numpy.array([1.0, 1.0, 1.0, -1.0, -1.0, -1.0]), region2: numpy.array([-1.0, 1.0, -1.0, 1.0])})
+		self.assertAlmostEqual(math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2), self.iso1.regionDist(self.iso2, self.region1))
+		self.assertAlmostEqual(math.sqrt(2**2 + 2**2 + 2**2 + 2**2), self.iso1.regionDist(self.iso2, self.region2))
 
-		self.assertAlmostEqual((1 + -1 + 1 + 1 + -1 + 1)/6, iso1.regionPearson(iso2, region1))
-		self.assertAlmostEqual((-1 + -1 + -1 + -1)/4, iso1.regionPearson(iso2, region2))
+		for region in [self.region1, self.region2]:
+			self.assertAlmostEqual(self.iso1.regionPearson(self.iso2, region), pyroprinting.pearsonFromDist(self.iso1.regionDist(self.iso2, region), region.dispCount)) 
+			self.assertAlmostEqual(self.iso1.regionPearson(self.iso2, region), pyroprinting.pearsonFromDist(self.iso1.regionDist(self.iso2, region), region.dispCount)) 
+			self.assertAlmostEqual(self.iso1.regionDist(self.iso2, region), pyroprinting.distFromPearson(self.iso1.regionPearson(self.iso2, region), region.dispCount)) 
 
-		self.assertAlmostEqual(math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2), iso1.regionDist(iso2, region1))
-		self.assertAlmostEqual(math.sqrt(2**2 + 2**2 + 2**2 + 2**2), iso1.regionDist(iso2, region2))
+			self.assertAlmostEqual(self.iso1.regionPearson(self.iso2, region), self.iso2.regionPearson(self.iso1, region))
+			self.assertAlmostEqual(1, self.iso1.regionPearson(self.iso1, region))
 
-		for region in [region1, region2]:
-			self.assertAlmostEqual(iso1.regionPearson(iso2, region), pyroprinting.pearsonFromDist(iso1.regionDist(iso2, region), region.dispCount)) 
-			self.assertAlmostEqual(iso1.regionPearson(iso2, region), pyroprinting.pearsonFromDist(iso1.regionDist(iso2, region), region.dispCount)) 
-			self.assertAlmostEqual(iso1.regionDist(iso2, region), pyroprinting.distFromPearson(iso1.regionPearson(iso2, region), region.dispCount)) 
-
-			self.assertAlmostEqual(iso1.regionPearson(iso2, region), iso2.regionPearson(iso1, region))
-			self.assertAlmostEqual(1, iso1.regionPearson(iso1, region))
-
-			self.assertAlmostEqual(iso1.regionDist(iso2, region), iso2.regionDist(iso1, region))
-			self.assertAlmostEqual(0, iso1.regionDist(iso1, region))
+			self.assertAlmostEqual(self.iso1.regionDist(self.iso2, region), self.iso2.regionDist(self.iso1, region))
+			self.assertAlmostEqual(0, self.iso1.regionDist(self.iso1, region))
 
 
 
-		# self.assertRegionsFloatAlmostEqual(iso1.regionsPearson(iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in iso1.regionsDist(iso2)])
-		# self.assertAlmostEqual(iso1.regionsPearson(iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in iso1.regionsDist(iso2)])
-		# self.assertRegionsFloatAlmostEqual(iso1.regionsDist(iso2), [(region, pyroprinting.distFromPearson(dist, region.dispCount)) for region, dist in iso1.regionsPearson(iso2)])
+		# self.assertRegionsFloatAlmostEqual(self.iso1.regionsPearson(self.iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in self.iso1.regionsDist(self.iso2)])
+		# self.assertAlmostEqual(self.iso1.regionsPearson(self.iso2), [(region, pyroprinting.pearsonFromDist(dist, region.dispCount)) for region, dist in self.iso1.regionsDist(self.iso2)])
+		# self.assertRegionsFloatAlmostEqual(self.iso1.regionsDist(self.iso2), [(region, pyroprinting.distFromPearson(dist, region.dispCount)) for region, dist in self.iso1.regionsPearson(self.iso2)])
 
-		# self.assertRegionsFloatAlmostEqual(iso1.regionsPearson(iso2), iso2.regionsPearson(iso1))
-		# self.assertRegionsFloatAlmostEqual([(region1, (1 + -1 + 1 + 1 + -1 + 1)/6), (region2, (-1 + -1 + -1 + -1)/4)], iso1.regionsPearson(iso2))
-		# self.assertRegionsFloatAlmostEqual([(region1, 1), (region2, 1)], iso1.regionsPearson(iso1))
+		# self.assertRegionsFloatAlmostEqual(self.iso1.regionsPearson(self.iso2), self.iso2.regionsPearson(self.iso1))
+		# self.assertRegionsFloatAlmostEqual([(self.region1, (1 + -1 + 1 + 1 + -1 + 1)/6), (self.region2, (-1 + -1 + -1 + -1)/4)], self.iso1.regionsPearson(self.iso2))
+		# self.assertRegionsFloatAlmostEqual([(self.region1, 1), (self.region2, 1)], self.iso1.regionsPearson(self.iso1))
 
-		# self.assertRegionsFloatAlmostEqual(iso1.regionsDist(iso2), iso2.regionsDist(iso1))
-		# self.assertRegionsFloatAlmostEqual([(region1, math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2)), (region2, math.sqrt(2**2 + 2**2 + 2**2 + 2**2))], iso1.regionsDist(iso2))
-		# self.assertRegionsFloatAlmostEqual([(region1, 0), (region2, 0)], iso1.regionsDist(iso1))
+		# self.assertRegionsFloatAlmostEqual(self.iso1.regionsDist(self.iso2), self.iso2.regionsDist(self.iso1))
+		# self.assertRegionsFloatAlmostEqual([(self.region1, math.sqrt(0**2 + 2**2 + 0**2 + 0**2 + 2**2 + 0**2)), (self.region2, math.sqrt(2**2 + 2**2 + 2**2 + 2**2))], self.iso1.regionsDist(self.iso2))
+		# self.assertRegionsFloatAlmostEqual([(self.region1, 0), (self.region2, 0)], self.iso1.regionsDist(self.iso1))
 
 
 
@@ -82,21 +82,14 @@ class TestIsolate(unittest.TestCase):
 		# cursor.close()
 
 	def testIsWithinRadiiOf(self):
-		region1 = pyroprinting.Region("region1", 6)
-		region2 = pyroprinting.Region("region2", 4)
-
-		# Note: not all arrays are valid zScore arrays.
-		iso1 = pyroprinting.Isolate("iso1", {region1: numpy.array([1.0, -1.0, 1.0, -1.0, 1.0, -1.0]), region2: numpy.array([1.0, -1.0, 1.0, -1.0])})
-		iso2 = pyroprinting.Isolate("iso2", {region1: numpy.array([1.0, 1.0, 1.0, -1.0, -1.0, -1.0]), region2: numpy.array([-1.0, 1.0, -1.0, 1.0])})
-
 		# test if both regions are inside or outside radius
-		self.assertFalse(iso1.isWithinRadiiOf(iso2, {region1: 2, region2: 3}))
-		self.assertTrue(iso1.isWithinRadiiOf(iso1, {region1: 2, region2: 3}))
-		self.assertTrue(iso2.isWithinRadiiOf(iso2, {region1: 2, region2: 3}))
+		self.assertFalse(self.iso1.isWithinRadiiOf(self.iso2, {self.region1: 2, self.region2: 3}))
+		self.assertTrue(self.iso1.isWithinRadiiOf(self.iso1, {self.region1: 2, self.region2: 3}))
+		self.assertTrue(self.iso2.isWithinRadiiOf(self.iso2, {self.region1: 2, self.region2: 3}))
 
 		# test if one region is inside radius but not other
-		self.assertFalse(iso1.isWithinRadiiOf(iso2, {region1: 20, region2: 3})) 
-		self.assertFalse(iso1.isWithinRadiiOf(iso2, {region1: 2, region2: 30}))
+		self.assertFalse(self.iso1.isWithinRadiiOf(self.iso2, {self.region1: 20, self.region2: 3})) 
+		self.assertFalse(self.iso1.isWithinRadiiOf(self.iso2, {self.region1: 2, self.region2: 30}))
 		
 
 
