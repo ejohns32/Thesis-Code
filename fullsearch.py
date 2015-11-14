@@ -52,10 +52,13 @@ class PrecomputedSearcher:
 		return self.neighborMap[queryIsolate]
 
 
+# TODO: calculate average pairwise dist
 def computeNeighborsMap(isolates, radii):
+	print("calculating isolate neighbors for a subset of size {}...".format(cfg.isolateSubsetSize))
+
 	neighbors = {isolate: set() for isolate in isolates}
 	for i, iso1 in enumerate(isolates):
-		print("{}/{}".format(i, len(isolates)))
+		print("{}/{}".format(i+1, len(isolates)))
 		for iso2 in isolates[i+1:]:
 			if iso1.isWithinRadiiOf(iso2, radii):
 				neighbors[iso1].add(iso2)

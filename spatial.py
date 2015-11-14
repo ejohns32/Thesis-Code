@@ -448,7 +448,7 @@ def testSpatial(isolates, tree, correctNeighbors, cfg):
 		missingCount += len(correctR - resultR)
 
 		# print("{}/{} - {}".format(i, len(queryIsolates), isolate))
-		print("{}/{} - {} - {}:{}".format(i, len(queryIsolates), isolate, len(resultR), len(correctR)))
+		print("{}/{} - {} - {}:{}".format(i+1, len(queryIsolates), isolate, len(resultR), len(correctR)))
 		# print("\t{} --- {} / {} : {} / {}".format(isolate, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
 		if resultR == correctR:
 			correctCount += 1

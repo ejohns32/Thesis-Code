@@ -84,6 +84,7 @@ class Isolate:
 
 
 def loadIsolatesFromDB(regions):
+	print("loading all isolates from DB...")
 	with open("mysqlConfig.json", mode='r') as mysqlConfigJson:
 		mysqlConfig = json.load(mysqlConfigJson)
 
@@ -132,6 +133,7 @@ def loadIsolatesFromDB(regions):
 	return [Isolate(isoID, {regionNameLookup[regionName]: numpy.array(pyroprint) for regionName, pyroprint in regionsPyroprintMap.items()}) for isoID, regionsPyroprintMap in data.items()]
 
 def getRandomSubset(isolates, isolateSubsetSize):
+	print("sampling subset of isolates of size {}...".format(cfg.isolateSubsetSize))
 	return list(random.sample(isolates, isolateSubsetSize))
 
 def getIsolatesCacheFileName(cfg):
@@ -145,6 +147,9 @@ def loadIsolates(cfg):
 	cacheFileName = getIsolatesCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
 		return loadIsolatesFromFile(cacheFileName)
+	elif os.path.isfile("isolatesAll.pickle"):
+		isolates = loadIsolatesFromFile("isolatesAll.pickle")
+		return getRandomSubset(isolates, cfg.isolateSubsetSize)
 	else:
 		isolates = loadIsolatesFromDB(cfg.regions)
 		if cfg.isolateSubsetSize == "All":

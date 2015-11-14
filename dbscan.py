@@ -245,12 +245,13 @@ def getMultipleClusterPoints(points, clusters):
 
 def printClusters(clusters):
 	for i, cluster in enumerate(clusters):
-		print("{}/{}: {}".foramt(i, len(clusters), cluster))
+		print("{}/{}: {}".foramt(i+1, len(clusters), cluster))
 		print()
 
 
 
 def computeDBscanClusters(isolates, cfg):
+	print("clustering for a subset of size {}...".format(cfg.isolateSubsetSize))
 	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 	precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
 	return dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
