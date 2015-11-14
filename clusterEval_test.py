@@ -6,6 +6,58 @@ import numpy
 
 import clusterEval
 
+class MockIsolate:
+	def __init__(self, mockID):
+		self.mockID = mockID
+
+	def regionPearson(self, other, region):
+		if self.mockID < other.mockID:
+			return MockIsolate.pearsonMap[region][(self.mockID, other.mockID)]
+		else:
+			return MockIsolate.pearsonMap[region][(other.mockID, self.mockID)]
+
+	def __repr(self):
+		return self.mockID
+
+	def __eq__(self, other):
+		return self.mockID == other.mockID
+
+	def __ne__(self, other):
+		return not self.__eq__(other)
+
+	def __hash__(self):
+		return self.mockID
+
+class MockRegion:
+	def __init__(self, pSimThresholdAlpha, pSimThresholdBeta):
+		self.pSimThresholdAlpha = pSimThresholdAlpha
+		self.pSimThresholdBeta = pSimThresholdBeta
+
+
+
+class TestClusterDistributions(unittest.TestCase):
+	def setUp(self):
+		self.mockRegion = MockRegion(.995, .99)
+		MockIsolate.pearsonMap = {self.mockRegion: {
+			(0, 1): .990, (0, 2): .991, (0, 3): .992, (0, 4): .993,
+			              (1, 2): .994, (1, 3): .995, (1, 4): .996,
+			                            (2, 3): .997, (2, 4): .998,
+			                                          (3, 4): .999}
+		}
+
+		self.clusters = [{MockIsolate(0), MockIsolate(4)}, {MockIsolate(1), MockIsolate(2), MockIsolate(3)}]
+
+	def testGetIntraClusterPearsons(self):
+		self.assertEqual(set(clusterEval.getIntraClusterPearsons(self.clusters[0], self.mockRegion)), {.993})
+		self.assertEqual(set(clusterEval.getIntraClusterPearsons(self.clusters[1], self.mockRegion)), {.994, .995, .997})
+
+	def testGetInterClusterPearsons(self):
+		self.assertEqual(set(clusterEval.getInterClusterPearsons(self.clusters[0], self.clusters[1], self.mockRegion)), {.990, .991, .992, .996, .998, .999})
+
+	def testGetCombinedIntraClusterPearsons(self):
+		self.assertEqual(set(clusterEval.getCombinedIntraClusterPearsons(self.clusters, self.mockRegion)), {.993, .994, .995, .997})
+
+
 class TestDistributionMatch(unittest.TestCase):
 	def setUp(self):
 		self.betaDistribution = stats.beta(668.1768, 1.532336)
@@ -16,29 +68,31 @@ class TestDistributionMatch(unittest.TestCase):
 		# self.clusters1 = [{1, 2, 3, 4}, {5, 6}]
 		# self.clusters2 = [{1, 3}, {2, 4}, {5}, {6}]
 		# self.clusters3 = [{1, 3, 5}, {2, 4, 6}]
-		self.clusters1 = [set(range(strainsStartIndex, strainsSwitchIndex)), set(range(strainsSwitchIndex, strainsEndIndex))]
-		self.clusters2 = [set(range(strainsStartIndex, strainsSwitchIndex, 2)), set(range(strainsStartIndex + 1, strainsSwitchIndex, 2)),
+		self.clusters1 = [set(MockIsolate(i) for i in range(strainsStartIndex, strainsSwitchIndex)), set(MockIsolate(i) for i in range(strainsSwitchIndex, strainsEndIndex))]
+		self.clusters2 = [set(MockIsolate(i) for i in range(strainsStartIndex, strainsSwitchIndex, 2)), set(MockIsolate(i) for i in range(strainsStartIndex + 1, strainsSwitchIndex, 2)),
 		                 # [set(range(strainsStartIndex, strainsSwitchIndex//2)), set(range(strainsSwitchIndex//2, strainsSwitchIndex)),
-		                  set(range(strainsSwitchIndex, strainsEndIndex, 2)), set(range(strainsSwitchIndex + 1, strainsEndIndex, 2))]
+		                  set(MockIsolate(i) for i in range(strainsSwitchIndex, strainsEndIndex, 2)), set(MockIsolate(i) for i in range(strainsSwitchIndex + 1, strainsEndIndex, 2))]
 		self.clusters3 = [self.clusters2[0] | self.clusters2[2], self.clusters2[1] | self.clusters2[3]]
 
 		# print(betaValues)
 		# random.shuffle(betaValues)
-		self.pearsonMap = dict()
+		pearsonMap = dict()
 
 		# 1-4 match each other and 5-6 match each other
 		betaValues = list(self.betaDistribution.ppf(numpy.linspace(0, 1, num=(strainsSwitchIndex)**2 / 2 + 2)))[1:-1]
 		for i in range(strainsStartIndex, strainsSwitchIndex):
 			for j in range(i+1, strainsSwitchIndex):
-				self.pearsonMap[i, j] = betaValues.pop()
+				pearsonMap[i, j] = betaValues.pop()
 			for j in range(strainsSwitchIndex, strainsEndIndex):
-				self.pearsonMap[i, j] = random.uniform(0.9, 0.99)
+				pearsonMap[i, j] = random.uniform(0.9, 0.99)
 
 		betaValues = list(self.betaDistribution.ppf(numpy.linspace(0, 1, num=(strainsEndIndex - strainsSwitchIndex)**2 / 2 + 2)))[1:-1]
 		for i in range(strainsSwitchIndex, strainsEndIndex):
 			for j in range(i+1, strainsEndIndex):
-				self.pearsonMap[i, j] = betaValues.pop()
+				pearsonMap[i, j] = betaValues.pop()
 
+		self.mockRegion = MockRegion(.995, .99)
+		MockIsolate.pearsonMap = {self.mockRegion: pearsonMap}
 
 		# self.pearsonMap = {(1,2): .996, (1,3): .997, (1,4): .998, (1,5): .980, (1,6): .900,
 		#                                 (2,3): .997, (2,4): .998, (2,5): .970, (2,6): .910,
@@ -55,37 +109,52 @@ class TestDistributionMatch(unittest.TestCase):
 		self.assertAlmostEqual(self.betaDistribution.cdf(0.9915), .01, places=3) # 3 places, because the first 0 doesn't count
 
 	def testDistributionSimilarity(self):
-		self.assertAlmostEqual(clusterEval.distributionSimilarity(self.pearsonMap, self.clusters1, self.clusters1), 1.0)
+		self.assertAlmostEqual(clusterEval.distributionSimilarity(self.clusters1, self.clusters1, self.mockRegion), 1.0)
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.distributionSimilarity(self.pearsonMap, self.clusters1, self.clusters2), .10)
+		self.assertGreater(clusterEval.distributionSimilarity(self.clusters1, self.clusters2, self.mockRegion), .10)
 		# should reject null hypothesis
-		self.assertLess(clusterEval.distributionSimilarity(self.pearsonMap, self.clusters1, self.clusters3), .10)
+		self.assertLess(clusterEval.distributionSimilarity(self.clusters1, self.clusters3, self.mockRegion), .10)
 
 	def testDistributionCorrectness(self):
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.distributionCorrectness(self.pearsonMap, self.clusters1, self.betaDistribution), .10)
+		self.assertGreater(clusterEval.distributionCorrectness(self.clusters1, self.mockRegion, self.betaDistribution), .10)
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.distributionCorrectness(self.pearsonMap, self.clusters2, self.betaDistribution), .10)
+		self.assertGreater(clusterEval.distributionCorrectness(self.clusters2, self.mockRegion, self.betaDistribution), .10)
 		# should reject null hypothesis
-		self.assertLess(clusterEval.distributionCorrectness(self.pearsonMap, self.clusters3, self.betaDistribution), .10)
+		self.assertLess(clusterEval.distributionCorrectness(self.clusters3, self.mockRegion, self.betaDistribution), .10)
 
 	def testIndividualClusterDistributionCorrectness(self):
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.individualClusterDistributionCorrectness(self.pearsonMap, self.clusters1, self.betaDistribution), .10)
+		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters1, self.mockRegion, self.betaDistribution)
+		self.assertGreater(correctRatio, .90)
+		self.assertGreater(averageP, .50)
+		self.assertGreater(completeP, .10)
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.individualClusterDistributionCorrectness(self.pearsonMap, self.clusters2, self.betaDistribution), .10)
+		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters2, self.mockRegion, self.betaDistribution)
+		self.assertGreater(correctRatio, .90)
+		self.assertGreater(averageP, .50)
+		self.assertGreater(completeP, .10)
 		# should reject null hypothesis
-		self.assertLess(clusterEval.individualClusterDistributionCorrectness(self.pearsonMap, self.clusters3, self.betaDistribution), .10)
+		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters3, self.mockRegion, self.betaDistribution)
+		self.assertLess(correctRatio, .10)
+		self.assertLess(averageP, .50)
+		self.assertLess(completeP, .10)
 
 	def testPairedClustersDistributionCorrectness(self):
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.pairedClustersDistributionCorrectness(self.pearsonMap, self.clusters1, self.betaDistribution), .10)
+		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters1, self.mockRegion, self.betaDistribution)
+		self.assertGreater(correctRatio, .90)
+		self.assertGreater(averageP, .50)
+		self.assertGreater(completeP, .10)
 		# should reject null hypothesis, but its not very strong
-		self.assertLess(clusterEval.pairedClustersDistributionCorrectness(self.pearsonMap, self.clusters2, self.betaDistribution), .15)
+		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters2, self.mockRegion, self.betaDistribution)
+		self.assertLess(correctRatio, .75)
+		self.assertLess(completeP, .25)
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.pairedClustersDistributionCorrectness(self.pearsonMap, self.clusters3, self.betaDistribution), .10)
-
-
+		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters3, self.mockRegion, self.betaDistribution)
+		self.assertGreater(correctRatio, .90)
+		self.assertGreater(averageP, .50)
+		self.assertGreater(completeP, .10)
 
 
 
@@ -93,22 +162,38 @@ class TestThresholdCorrectness(unittest.TestCase):
 	def testThresholdCorrectness(self):
 		dsThreshold = .995
 		ddThreshold = .99
+		regions = [MockRegion(.995, .99), MockRegion(.995, .99)]
 
-		pearsonMap = {(0, 1): .993, (0, 2): .993, (0, 3): .993, (0, 4): .999,
-		                            (1, 2): .999, (1, 3): .999, (1, 4): .999,
-		                                          (2, 3): .987, (2, 4): .987,
-		                                                        (3, 4): .987}
+		MockIsolate.pearsonMap = dict()
+		# totSquishy = 3, sameDS = 3, diffDS = 1, sameDD = 1, diffDD = 2
+		MockIsolate.pearsonMap[regions[0]] = {
+			(0, 1): .993, (0, 2): .999, (0, 3): .993, (0, 4): .999,
+			              (1, 2): .999, (1, 3): .999, (1, 4): .999,
+			                            (2, 3): .987, (2, 4): .987,
+			                                          (3, 4): .987}
+
+		# totSquishy = 3, sameDS = 3, diffDS = 1, sameDD = 0, diffDD = 3
+		MockIsolate.pearsonMap[regions[1]] = {
+			(0, 1): .999, (0, 2): .999, (0, 3): .993, (0, 4): .999,
+			              (1, 2): .993, (1, 3): .999, (1, 4): .987,
+			                            (2, 3): .993, (2, 4): .987,
+			                                          (3, 4): .987}
 		# for (first, second), pearson in list(pearsonMap.items()):
 		# 	pearsonMap[second, first] = pearson
 
-		# totSquishy = 3, sameDS = 3, diffDS = 1, sameDD = 1, diffDD = 2
-		clusters = [{0, 4}, {1, 2, 3}]
+		# but combined:
+		totSquishy = 3
+		sameDS = 2
+		diffDS = 1
+		sameDD = 1
+		diffDD = 3
+		clusters = [{MockIsolate(0), MockIsolate(4)}, {MockIsolate(1), MockIsolate(2), MockIsolate(3)}]
 
-		correctDS, correctDD, tcScore, squishyRatio = clusterEval.thresholdCorrectness(range(5), pearsonMap, clusters, dsThreshold, ddThreshold)
-		self.assertAlmostEqual(correctDS, 3/(3+1))
-		self.assertAlmostEqual(correctDD, 2/(1+2))
-		self.assertAlmostEqual(tcScore, (3+2)/(4+3))
-		self.assertAlmostEqual(squishyRatio, 3/(3+4+3))
+		correctDS, correctDD, squishyRatio = clusterEval.thresholdCorrectness([MockIsolate(i) for i in range(5)], clusters, regions)
+		self.assertAlmostEqual(correctDS, sameDS/(sameDS+diffDS))
+		self.assertAlmostEqual(correctDD, diffDD/(sameDD+diffDD))
+		# self.assertAlmostEqual(tcScore, (3+2)/(4+3))
+		self.assertAlmostEqual(squishyRatio, totSquishy/(totSquishy+sameDS+diffDS+sameDD+diffDD))
 
 
 
