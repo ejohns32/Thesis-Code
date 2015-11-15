@@ -26,6 +26,9 @@ TODO
 Most files can be run standalone for verification / timing purposes.
 Some files have unit tests while others just check equality with alternate implementations.
 
+use clusterEval.py to evaluate the quality of clusters
+The output isn't verbose so you'll need to look at the code to see what the outputted numbers are
+
 
 
 
@@ -34,7 +37,7 @@ Some files have unit tests while others just check equality with alternate imple
 
 THIS FEATURE IS ONLY INTENDED FOR FASTER DEBUGGING, TESTING and TUNING
 
-You can run cachethings.py to cache calculations things to disk for performance or consistency between multiple runs. If the database is updated or you change the config, it'll invalidate the cache. cachethings.py only caches things that aren't already cached which means you have to manually delete invalidated cached files and run cachethings.py again.
+You can run cachethings.py to cache calculations things to disk for performance or consistency between multiple runs. The CACHE WILL BE INVALIDATED if the database is updated or you change the config. cachethings.py only caches things that aren't already cached which means YOU HAVE TO MANUALLY DELETE INVALIDATED CACHED FILES and run cachethings.py again.
 
 
 
@@ -48,25 +51,30 @@ Here is a commented example of clusterConfig.json:
 {
 	"regions": [				# if you change the order or the contents you'll need to recache everything
 		{
-			"name": "23-5",
-			"dispCount": 93,
-			"pearsonSimilarityThresholdAlpha": 0.995,
-			"pearsonSimilarityThresholdBeta": 0.99,
-			"betaDistributionAlpha": 386.65,
-			"betaDistributionBeta": 1.36074
+			"name": "23-5",								# needs to match the values in CPLOP
+			"dispCount": 93,							# becauses zScores were precomputed with it
+
+			"pearsonSimilarityThresholdAlpha": 0.995,	# eps for dbscan. changes
+			"pearsonSimilarityThresholdBeta": 0.99,		# invalidate cached clusters
+
+			"betaDistributionAlpha": 386.65,			# these two are used
+			"betaDistributionBeta": 1.36074				# for cluster evaluation
 		}, {
 			"name": "16-23",
 			"dispCount": 95,
+
 			"pearsonSimilarityThresholdAlpha": 0.995,
 			"pearsonSimilarityThresholdBeta": 0.99,
+
 			"betaDistributionAlpha": 668.1768,
 			"betaDistributionBeta": 1.532336
 		}
 	],
 
-	"minNeighbors": 5,			# dbscan param: values of 1 or 2 make dbscan
+	"minNeighbors": 3,			# dbscan param: values of 1 or 2 make dbscan
 								# degenerate to single link agglomerative
 								# (without the hierarchy)
+								# invalidates cached clusters
 
 	"pointsPerLeaf": 8,			# spatial index param
 
