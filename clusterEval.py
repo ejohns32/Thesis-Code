@@ -9,6 +9,17 @@ import config
 import pyroprinting
 import dbscan
 
+
+def getDistributionCorrectnessFunc(expectedDistribution):
+	def func(actual):
+		return stats.ks_2samp(actual, expectedDistribution)
+	return func
+
+def getBetaCorrectnessFunc(expectedBeta):
+	def func(actual):
+		return stats.kstest(actual, expectedBeta.cdf)
+	return func
+
 def getIntraClusterPearsons(cluster, region):
 	pearsons = []
 
@@ -44,12 +55,13 @@ def distributionSimilarity(clusters1, clusters2, region):
 
 
 
-def distributionCorrectness(clusters, region, betaDistribution):
-	ksStat, pValue = stats.kstest(getCombinedIntraClusterPearsons(clusters, region), betaDistribution.cdf)
+def distributionCorrectness(clusters, region, correctnessFunc):
+	ksStat, pValue = correctnessFunc(getCombinedIntraClusterPearsons(clusters, region))
+	# ksStat, pValue = stats.kstest(getCombinedIntraClusterPearsons(clusters, region), betaDistribution.cdf)
 	return pValue
 
 # TODO: try looking at average chance in addition to complete chance
-def individualClusterDistributionCorrectness(clusters, region, betaDistribution):
+def individualClusterDistributionCorrectness(clusters, region, correctnessFunc):
 	# TODO: double check that this is statistically valid
 	# null hypothesis: all individual clusters fit
 	# reject if any individuals reject
@@ -63,7 +75,8 @@ def individualClusterDistributionCorrectness(clusters, region, betaDistribution)
 	chanceNoneReject = 1.0
 	for cluster in clusters:
 		if len(cluster) > 1: # otherwise it wont have any pairwise pearsons
-			ksStat, pValue = stats.kstest(getIntraClusterPearsons(cluster, region), betaDistribution.cdf)
+			ksStat, pValue = correctnessFunc(getIntraClusterPearsons(cluster, region))
+			# ksStat, pValue = stats.kstest(getIntraClusterPearsons(cluster, region), betaDistribution.cdf)
 			# print(pValue)
 			chanceNoneReject *= pValue
 			averageP += pValue
@@ -75,7 +88,7 @@ def individualClusterDistributionCorrectness(clusters, region, betaDistribution)
 
 # TODO: try looking at average chance in addition to complete chance
 # seems to need large clusters to work
-def pairedClustersDistributionCorrectness(clusters, region, betaDistribution):
+def pairedClustersDistributionCorrectness(clusters, region, correctnessFunc):
 	# TODO: double check that this is statistically valid
 	# null hypothesis: no pairs of clusters fit
 	# reject if any pairs fit
@@ -94,7 +107,8 @@ def pairedClustersDistributionCorrectness(clusters, region, betaDistribution):
 		for  j, cluster2 in enumerate(clusters[i+1:]):
 			# each cluster will have at least 1 iso, so combined will have at least 2 iso, so at least one pairwise pearson
 			pearsons = intraPearsons[i] + intraPearsons[i+1+j] + getInterClusterPearsons(cluster1, cluster2, region)
-			ksStat, pValue = stats.kstest(pearsons, betaDistribution.cdf)
+			# ksStat, pValue = stats.kstest(pearsons, betaDistribution.cdf)
+			ksStat, pValue = correctnessFunc(pearsons)
 			# ksStat, pValue = stats.kstest(getIntraClusterPearsons(cluster1 | cluster2, region), betaDistribution.cdf)
 			# print(1-pValue)
 			# print(pValue)
@@ -298,19 +312,23 @@ if __name__ == '__main__':
 	isolates = pyroprinting.loadIsolates(cfg)
 
 	dbscanClusters = dbscan.getDBscanClusters(isolates, cfg)
+	replicatePearsons = loadReplicatePearsons(cfg)
 
 	for region in cfg.regions:
 		print("\n{}".format(region))
 
-		betaDistribution = stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta)
+		# print(stats.beta.fit(replicatePearsons[region]))
+		betaCorrectnessFunc = getBetaCorrectnessFunc(stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta))
+		distributionCorrectnessFunc = getDistributionCorrectnessFunc(replicatePearsons[region])
+		# betaDistribution = stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta)
 		# pearsonMap = getPearsonMap(isolates, region, cfg)
 
-		print("\tdistributionCorrectness: {}".format(
-			distributionCorrectness(dbscanClusters, region, betaDistribution)))
-		print("\tindividualClusterDistributionCorrectness: {}".format(
-			individualClusterDistributionCorrectness(dbscanClusters, region, betaDistribution)))
-		print("\tpairedClustersDistributionCorrectness: {}".format(
-			pairedClustersDistributionCorrectness(dbscanClusters, region, betaDistribution)))
+		print("\tdistributionCorrectness: {}".format(distributionCorrectness(dbscanClusters, region, distributionCorrectnessFunc)))
+		print("\tbetaDistributionCorrectness: {}".format(distributionCorrectness(dbscanClusters, region, betaCorrectnessFunc)))
+		print("\tindividualClusterDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(dbscanClusters, region, distributionCorrectnessFunc)))
+		print("\tindividualClusterBetaDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(dbscanClusters, region, betaCorrectnessFunc)))
+		print("\tpairedClustersDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(dbscanClusters, region, distributionCorrectnessFunc)))
+		print("\tpairedClustersBetaDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(dbscanClusters, region, betaCorrectnessFunc)))
 
 		# del pearsonMap # the garbage collector should free this now
 

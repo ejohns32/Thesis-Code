@@ -57,6 +57,10 @@ class TestClusterDistributions(unittest.TestCase):
 	def testGetCombinedIntraClusterPearsons(self):
 		self.assertEqual(set(clusterEval.getCombinedIntraClusterPearsons(self.clusters, self.mockRegion)), {.993, .994, .995, .997})
 
+def getMockCorrectnessFunc():
+	def func():
+		return
+	return
 
 class TestDistributionMatch(unittest.TestCase):
 	def setUp(self):
@@ -68,10 +72,13 @@ class TestDistributionMatch(unittest.TestCase):
 		# self.clusters1 = [{1, 2, 3, 4}, {5, 6}]
 		# self.clusters2 = [{1, 3}, {2, 4}, {5}, {6}]
 		# self.clusters3 = [{1, 3, 5}, {2, 4, 6}]
-		self.clusters1 = [set(MockIsolate(i) for i in range(strainsStartIndex, strainsSwitchIndex)), set(MockIsolate(i) for i in range(strainsSwitchIndex, strainsEndIndex))]
-		self.clusters2 = [set(MockIsolate(i) for i in range(strainsStartIndex, strainsSwitchIndex, 2)), set(MockIsolate(i) for i in range(strainsStartIndex + 1, strainsSwitchIndex, 2)),
+		self.clusters1 = [set(MockIsolate(i) for i in range(strainsStartIndex, strainsSwitchIndex)),
+		                  set(MockIsolate(i) for i in range(strainsSwitchIndex, strainsEndIndex))]
+		self.clusters2 = [set(MockIsolate(i) for i in range(strainsStartIndex, strainsSwitchIndex, 2)),
+		                  set(MockIsolate(i) for i in range(strainsStartIndex + 1, strainsSwitchIndex, 2)),
 		                 # [set(range(strainsStartIndex, strainsSwitchIndex//2)), set(range(strainsSwitchIndex//2, strainsSwitchIndex)),
-		                  set(MockIsolate(i) for i in range(strainsSwitchIndex, strainsEndIndex, 2)), set(MockIsolate(i) for i in range(strainsSwitchIndex + 1, strainsEndIndex, 2))]
+		                  set(MockIsolate(i) for i in range(strainsSwitchIndex, strainsEndIndex, 2)),
+		                  set(MockIsolate(i) for i in range(strainsSwitchIndex + 1, strainsEndIndex, 2))]
 		self.clusters3 = [self.clusters2[0] | self.clusters2[2], self.clusters2[1] | self.clusters2[3]]
 
 		# print(betaValues)
