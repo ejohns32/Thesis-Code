@@ -57,14 +57,18 @@ class TestClusterDistributions(unittest.TestCase):
 	def testGetCombinedIntraClusterPearsons(self):
 		self.assertEqual(set(clusterEval.getCombinedIntraClusterPearsons(self.clusters, self.mockRegion)), {.993, .994, .995, .997})
 
-def getMockCorrectnessFunc():
-	def func():
-		return
-	return
+
+# could use to make sure the correct things are being passed to the kolmogorov-smirnov test
+# but some call this multiple times. need to be able to expect different things each time
+# def getMockCorrectnessFunc(test, expected):
+# 	def func(actual):
+# 		test.assertEqual(set(expected), set(actual))
+# 	return func
 
 class TestDistributionMatch(unittest.TestCase):
 	def setUp(self):
 		self.betaDistribution = stats.beta(668.1768, 1.532336)
+		self.correctnessFunc = clusterEval.getBetaCorrectnessFunc(self.betaDistribution)
 
 		strainsStartIndex = 0
 		strainsSwitchIndex = 40
@@ -112,10 +116,11 @@ class TestDistributionMatch(unittest.TestCase):
 	def testBetaDistribution(self):
 		# confirm the values found in Diana's paper
 		self.assertAlmostEqual(self.betaDistribution.cdf(0.9953), .10, places=2)
-		self.assertAlmostEqual(self.betaDistribution.cdf(0.9941), .05, places=3) # 3 places, because the first 0 doesn't count
-		self.assertAlmostEqual(self.betaDistribution.cdf(0.9915), .01, places=3) # 3 places, because the first 0 doesn't count
+		self.assertAlmostEqual(self.betaDistribution.cdf(0.9941), .05, places=3) # 3 places because the first 0 doesn't count
+		self.assertAlmostEqual(self.betaDistribution.cdf(0.9915), .01, places=3) # 3 places because the first 0 doesn't count
 
 	def testDistributionSimilarity(self):
+		# should not reject null hypothesis. infact it should fit exactactly
 		self.assertAlmostEqual(clusterEval.distributionSimilarity(self.clusters1, self.clusters1, self.mockRegion), 1.0)
 		# should not reject null hypothesis
 		self.assertGreater(clusterEval.distributionSimilarity(self.clusters1, self.clusters2, self.mockRegion), .10)
@@ -124,41 +129,41 @@ class TestDistributionMatch(unittest.TestCase):
 
 	def testDistributionCorrectness(self):
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.distributionCorrectness(self.clusters1, self.mockRegion, self.betaDistribution), .10)
+		self.assertGreater(clusterEval.distributionCorrectness(self.clusters1, self.mockRegion, self.correctnessFunc), .10)
 		# should not reject null hypothesis
-		self.assertGreater(clusterEval.distributionCorrectness(self.clusters2, self.mockRegion, self.betaDistribution), .10)
+		self.assertGreater(clusterEval.distributionCorrectness(self.clusters2, self.mockRegion, self.correctnessFunc), .10)
 		# should reject null hypothesis
-		self.assertLess(clusterEval.distributionCorrectness(self.clusters3, self.mockRegion, self.betaDistribution), .10)
+		self.assertLess(clusterEval.distributionCorrectness(self.clusters3, self.mockRegion, self.correctnessFunc), .10)
 
 	def testIndividualClusterDistributionCorrectness(self):
 		# should not reject null hypothesis
-		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters1, self.mockRegion, self.betaDistribution)
+		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters1, self.mockRegion, self.correctnessFunc)
 		self.assertGreater(correctRatio, .90)
 		self.assertGreater(averageP, .50)
 		self.assertGreater(completeP, .10)
 		# should not reject null hypothesis
-		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters2, self.mockRegion, self.betaDistribution)
+		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters2, self.mockRegion, self.correctnessFunc)
 		self.assertGreater(correctRatio, .90)
 		self.assertGreater(averageP, .50)
 		self.assertGreater(completeP, .10)
 		# should reject null hypothesis
-		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters3, self.mockRegion, self.betaDistribution)
+		correctRatio, averageP, completeP = clusterEval.individualClusterDistributionCorrectness(self.clusters3, self.mockRegion, self.correctnessFunc)
 		self.assertLess(correctRatio, .10)
 		self.assertLess(averageP, .50)
 		self.assertLess(completeP, .10)
 
 	def testPairedClustersDistributionCorrectness(self):
 		# should not reject null hypothesis
-		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters1, self.mockRegion, self.betaDistribution)
+		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters1, self.mockRegion, self.correctnessFunc)
 		self.assertGreater(correctRatio, .90)
 		self.assertGreater(averageP, .50)
 		self.assertGreater(completeP, .10)
 		# should reject null hypothesis, but its not very strong
-		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters2, self.mockRegion, self.betaDistribution)
+		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters2, self.mockRegion, self.correctnessFunc)
 		self.assertLess(correctRatio, .75)
 		self.assertLess(completeP, .25)
 		# should not reject null hypothesis
-		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters3, self.mockRegion, self.betaDistribution)
+		correctRatio, averageP, completeP = clusterEval.pairedClustersDistributionCorrectness(self.clusters3, self.mockRegion, self.correctnessFunc)
 		self.assertGreater(correctRatio, .90)
 		self.assertGreater(averageP, .50)
 		self.assertGreater(completeP, .10)
@@ -167,8 +172,6 @@ class TestDistributionMatch(unittest.TestCase):
 
 class TestThresholdCorrectness(unittest.TestCase):
 	def testThresholdCorrectness(self):
-		dsThreshold = .995
-		ddThreshold = .99
 		regions = [MockRegion(.995, .99), MockRegion(.995, .99)]
 
 		MockIsolate.pearsonMap = dict()
