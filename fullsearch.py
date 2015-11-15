@@ -53,14 +53,14 @@ class PrecomputedSearcher:
 
 
 # TODO: calculate average pairwise dist
-def computeNeighborsMap(isolates, radii):
+def computeNeighborsMap(isolates, cfg):
 	print("calculating isolate neighbors for a subset of size {}...".format(cfg.isolateSubsetSize))
 
 	neighbors = {isolate: set() for isolate in isolates}
 	for i, iso1 in enumerate(isolates):
 		print("{}/{}".format(i+1, len(isolates)))
 		for iso2 in isolates[i+1:]:
-			if iso1.isWithinRadiiOf(iso2, radii):
+			if iso1.isWithinRadiiOf(iso2, cfg.radii):
 				neighbors[iso1].add(iso2)
 				neighbors[iso2].add(iso1)
 
@@ -81,5 +81,5 @@ def getNeighborsMap(isolates, cfg):
 	if os.path.isfile(cacheFileName):
 		return loadNeighborsMapFromFile(cacheFileName)
 	else:
-		return computeNeighborsMap(isolates, cfg.radii)
+		return computeNeighborsMap(isolates, cfg)
 

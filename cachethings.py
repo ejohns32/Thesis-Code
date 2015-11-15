@@ -15,10 +15,10 @@ def cacheAllIsolates(cfg):
 	if os.path.isfile(cacheFileName):
 		return
 
-	isolates = pyroprinting.loadIsolatesFromDB(cfg.regions)
+	isolates = pyroprinting.loadIsolatesFromDB(cfg)
 
-	with open(cacheFileName, mode='w+b') as isolatesFile:
-		pickle.dump(isolates, isolatesFile)
+	with open(cacheFileName, mode='w+b') as cacheFile:
+		pickle.dump(isolates, cacheFile)
 
 # def sliceIsolates(isolates, sliceSize):
 # 	with open("isolatesAll.pickle", mode='w+b') as isolatesFile:
@@ -37,7 +37,7 @@ def cacheIsolateSubset(cfg):
 
 	isolates = pyroprinting.loadIsolatesFromFile("isolatesAll.pickle")
 
-	isolateSubset = pyroprinting.getRandomSubset(isolates, cfg.isolateSubsetSize)
+	isolateSubset = pyroprinting.getRandomSubset(isolates, cfg)
 	with open(cacheFileName, mode='w+b') as cacheFile:
 		pickle.dump(isolateSubset, cacheFile)
 
@@ -50,7 +50,7 @@ def cacheNeighbors(cfg):
 
 	isolates = pyroprinting.loadIsolates(cfg)
 
-	neighbors = fullsearch.computeNeighborsMap(isolates, cfg.radii)
+	neighbors = fullsearch.computeNeighborsMap(isolates, cfg)
 
 	avgMatches = sum(len(matches) for _, matches in neighbors.items()) / len(neighbors)
 	print("avgMatches: {}".format(avgMatches))

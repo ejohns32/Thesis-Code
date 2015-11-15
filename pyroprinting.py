@@ -83,12 +83,12 @@ class Isolate:
 		return hash(self.name)
 
 
-def loadIsolatesFromDB(regions):
+def loadIsolatesFromDB(cfg):
 	print("loading all isolates from DB...")
 	with open("mysqlConfig.json", mode='r') as mysqlConfigJson:
 		mysqlConfig = json.load(mysqlConfigJson)
 
-	regionNameLookup = {region.name: region for region in regions}
+	regionNameLookup = {region.name: region for region in cfg.regions}
 
 	cnx = mysql.connector.connect(**mysqlConfig)
 	# cursor = cnx.cursor(buffered=True)
@@ -118,7 +118,7 @@ def loadIsolatesFromDB(regions):
 	toDelete = []
 
 	for isoID in data.keys():
-		for region in regions:
+		for region in cfg.regions:
 			if region.name not in data[isoID]:
 				toDelete.append(isoID)
 				break
@@ -132,9 +132,9 @@ def loadIsolatesFromDB(regions):
 
 	return [Isolate(isoID, {regionNameLookup[regionName]: numpy.array(pyroprint) for regionName, pyroprint in regionsPyroprintMap.items()}) for isoID, regionsPyroprintMap in data.items()]
 
-def getRandomSubset(isolates, isolateSubsetSize):
+def getRandomSubset(isolates, cfg):
 	print("sampling subset of isolates of size {}...".format(cfg.isolateSubsetSize))
-	return list(random.sample(isolates, isolateSubsetSize))
+	return list(random.sample(isolates, cfg.isolateSubsetSize))
 
 def getIsolatesCacheFileName(cfg):
 	return "isolates{}.pickle".format(cfg.isolateSubsetSize)
@@ -149,11 +149,11 @@ def loadIsolates(cfg):
 		return loadIsolatesFromFile(cacheFileName)
 	elif os.path.isfile("isolatesAll.pickle"):
 		isolates = loadIsolatesFromFile("isolatesAll.pickle")
-		return getRandomSubset(isolates, cfg.isolateSubsetSize)
+		return getRandomSubset(isolates, cfg)
 	else:
-		isolates = loadIsolatesFromDB(cfg.regions)
+		isolates = loadIsolatesFromDB(cfg)
 		if cfg.isolateSubsetSize == "All":
 			return isolates
 		else:
-			return getRandomSubset(isolates, cfg.isolateSubsetSize)
+			return getRandomSubset(isolates, cfg)
 
