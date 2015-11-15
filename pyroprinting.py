@@ -93,10 +93,12 @@ def loadIsolatesFromDB(cfg):
 	cnx = mysql.connector.connect(**mysqlConfig)
 	# cursor = cnx.cursor(buffered=True)
 	cursor = cnx.cursor()
-	query = ("SELECT p1.isoID, p1.appliedRegion, position, zHeight FROM zScores INNER JOIN pyroprints p1 USING(pyroID) LEFT JOIN pyroprints p2 ON p1.isoID = p2.isoID AND p1.appliedRegion = p2.appliedRegion AND p1.pyroID < p2.pyroID WHERE p2.isoID IS NULL ORDER BY isoID, appliedRegion, position")
+	query = ("SELECT p1.isoID, p1.appliedRegion, position, zHeight FROM zScores INNER JOIN pyroprints p1 USING(pyroID) LEFT JOIN pyroprints p2 ON p1.isoID = p2.isoID AND p1.appliedRegion = p2.appliedRegion AND p2.isErroneous IS FALSE AND p1.pyroID < p2.pyroID WHERE p1.isErroneous IS FALSE AND p2.isoID IS NULL ORDER BY isoID, appliedRegion, position")
 
-	# 	Double checked with:
-	# SELECT p1.isoID, p1.appliedRegion, p1.pyroID FROM pyroprints p1 LEFT JOIN pyroprints p2 ON p1.isoID = p2.isoID AND p1.appliedRegion = p2.appliedRegion AND p1.pyroID < p2.pyroID WHERE p2.isoID IS NULL ORDER BY isoID, appliedRegion
+	# 		Double checked with:
+	# SELECT p1.isoID, p1.appliedRegion, p1.pyroID FROM pyroprints p1 LEFT JOIN pyroprints p2 ON p1.isoID = p2.isoID AND p1.appliedRegion = p2.appliedRegion AND p1.pyroID < p2.pyroID AND p1.isErroneous IS FALSE AND p2.isErroneous IS FALSE WHERE p2.isoID IS NULL ORDER BY isoID, appliedRegion;
+	# 		And
+	# SELECT p1.isoID, p1.appliedRegion, p1.pyroID, p3.pyroID FROM pyroprints p1 LEFT JOIN pyroprints p2 ON p1.isoID = p2.isoID AND p1.appliedRegion = p2.appliedRegion AND p1.pyroID < p2.pyroID AND p1.isErroneous IS FALSE AND p2.isErroneous IS FALSE join pyroprints p3 ON p3.isoID = p1.isoID and p3.appliedRegion = p1.appliedRegion left join pyroprints p4 on p4.isoID = p3.isoID AND p4.appliedRegion = p3.appliedRegion and p3.pyroID < p4.pyroID WHERE p2.isoID IS NULL and p4.isoID IS NULL and p1.pyroID != p3.pyroID ORDER BY isoID, appliedRegion;
 	# select pyroID, appliedRegion from pyroprints where isoID = "Sp-079";
 
 	cursor.execute(query)
@@ -110,6 +112,8 @@ def loadIsolatesFromDB(cfg):
 			data[isoID][region] = []
 			print("{}[{}]".format(isoID, region))
 		assert position == len(data[isoID][region])
+		# if position != len(data[isoID][region]):
+		# 	print("\t{}: {} != {}".format(region, position, len(data[isoID][region])))
 		data[isoID][region].append(zHeight)
 
 	cursor.close()
