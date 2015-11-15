@@ -76,6 +76,15 @@ def cacheNeighbors(cfg):
 
 # 		del pearsonMap # the garbage collector should free this now
 
+def cacheReplicatePearsons(cfg):
+	cacheFileName = clusterEval.getReplicatePearsonsCacheFileName(cfg)
+	if os.path.isfile(cacheFileName):
+		return
+
+	pearsons = clusterEval.loadReplicatePearsonsFromDB(cfg)
+
+	with open(cacheFileName, mode='w+b') as cacheFile:
+		pickle.dump(pearsons, cacheFile)
 
 
 
@@ -99,5 +108,6 @@ if __name__ == '__main__':
 	cacheAllIsolates(cfg)
 	cacheIsolateSubset(cfg)
 	cacheNeighbors(cfg)
+	cacheReplicatePearsons(cfg)
 	# cacheRegionsPearsonMap(cfg)
 	cacheDBscanClusters(cfg)

@@ -1,6 +1,8 @@
 import os.path
 import pickle
+import json
 
+import mysql.connector
 from scipy import stats
 
 import config
@@ -211,6 +213,51 @@ def similarityIndexes(isolates, clusters1, clusters2):
 
 
 
+def loadReplicatePearsonsFromDB(cfg):
+	print("loading replicate pearsons from DB...")
+
+	regionNameLookup = {region.name: region for region in cfg.regions}
+
+	with open("mysqlConfig.json", mode='r') as mysqlConfigJson:
+		mysqlConfig = json.load(mysqlConfigJson)
+
+	cnx = mysql.connector.connect(**mysqlConfig)
+	# cursor = cnx.cursor(buffered=True)
+	cursor = cnx.cursor()
+
+	maxReplicatesPerIsolateRegion = 10 # to prevent bias
+	query = (
+		"SELECT r.appliedRegion as region, PearsonMatch(p1.pyroID, p2.pyroID, r.pearsonDispLength) as pearson FROM Pyroprints AS p1 INNER JOIN Pyroprints AS p2 USING(`isoID`, `appliedRegion`) INNER JOIN Regions AS r USING(`appliedRegion`) WHERE (SELECT COUNT(*) FROM Pyroprints AS pyro WHERE pyro.isoID = p1.isoID AND pyro.appliedRegion = p1.appliedRegion AND pyro.pyroID > p1.pyroID AND pyro.isErroneous IS FALSE) < {} AND p1.pyroID < p2.pyroID AND p1.isErroneous IS FALSE AND p2.isErroneous IS FALSE ORDER BY p1.isoID, p1.appliedRegion, p1.pyroID, p2.pyroID".format(maxReplicatesPerIsolateRegion)
+	)
+	# Isolates checked with:
+	# select isoID, appliedRegion, count(*) from pyroprints where isErroneous is false group by isoID, appliedRegion having count(*) > 1 order by isoID, appliedRegion;
+	
+	regionPearsons = {region.name: [] for region in cfg.regions}
+	cursor.execute(query)
+	for (region, pearson) in cursor:
+		regionPearsons[region].append(pearson)
+
+	cursor.close()
+	cnx.close()
+
+	for region in cfg.regions:
+		print("region {} has {} replicate pairs".format(region.name, len(regionPearsons[region.name])))
+
+	return {regionNameLookup[region]: pearsons for region, pearsons in regionPearsons.items()}
+
+def getReplicatePearsonsCacheFileName(cfg):
+	return "replicatePearsons.pickle"
+
+def loadReplicatePearsonsFromFile(cacheFileName):
+	with open(cacheFileName, mode='r+b') as cacheFile:
+		return pickle.load(cacheFile)
+
+def loadReplicatePearsons(cfg):
+	cacheFileName = getReplicatePearsonsCacheFileName(cfg)
+	if os.path.isfile(cacheFileName):
+		return loadReplicatePearsonsFromFile(cacheFileName)
+	else:
+		return loadReplicatePearsonsFromDB(cfg)
 
 
 # def computeRegionPearsonMap(isolates, region):
