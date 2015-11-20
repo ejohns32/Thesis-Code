@@ -67,7 +67,7 @@ def computeNeighborsMap(isolates, cfg):
 	return neighbors
 
 def getNeighborsMapCacheFileName(cfg):
-	return "neighbors{}.pickle".format(cfg.isolateSubsetSize)
+	return "neighbors{}_{}.pickle".format(cfg.isolateSubsetSize, "_".join(str(region.clusterThreshold) for region in cfg.regions))
 	# return "neighbors{}T{}.pickle".format(cfg.isolateSubsetSize, '_'.join(str(region.pSimThresholdAlpha) for region in  cfg.regions))
 
 def loadNeighborsMapFromFile(cacheFileName):

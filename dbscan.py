@@ -257,7 +257,7 @@ def computeDBscanClusters(isolates, cfg):
 	return dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
 
 def getDBscanClustersCacheFileName(cfg):
-	return "dbscan{}.pickle".format(cfg.isolateSubsetSize)
+	return "dbscan{}_{}.pickle".format(cfg.isolateSubsetSize, "_".join(str(region.clusterThreshold) for region in cfg.regions))
 
 def loadDBscanClustersFromFile(cacheFileName):
 	with open(cacheFileName, mode='r+b') as cacheFile:

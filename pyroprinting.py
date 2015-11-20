@@ -14,9 +14,10 @@ import config
 # TODO: use region.index to store regions in arrays instead of dicts
 class Region:
 	nextIndex = 0
-	def __init__(self, name, dispCount, pSimThresholdAlpha, pSimThresholdBeta, betaDistributionAlpha, betaDistributionBeta):
+	def __init__(self, name, dispCount, clusterThreshold, pSimThresholdAlpha, pSimThresholdBeta, betaDistributionAlpha, betaDistributionBeta):
 		self.name = name
 		self.dispCount = dispCount
+		self.clusterThreshold = clusterThreshold
 		self.pSimThresholdAlpha = pSimThresholdAlpha
 		self.pSimThresholdBeta = pSimThresholdBeta
 		self.betaDistributionAlpha = betaDistributionAlpha
@@ -29,6 +30,7 @@ class Region:
 		return Region(
 			decodedJSON["name"],
 			decodedJSON["dispCount"],
+			decodedJSON["clusterThreshold"],
 			decodedJSON["pearsonSimilarityThresholdAlpha"],
 			decodedJSON["pearsonSimilarityThresholdBeta"],
 			decodedJSON["betaDistributionAlpha"],
@@ -52,7 +54,6 @@ def pearsonFromDist(dist, dispCount):
 def distFromPearson(pearson, dispCount):
 	return math.sqrt(2*dispCount * (1 - pearson))
 
-# TODO: add isolate.index to store isolates in arrays instead of dicts
 class Isolate:
 	def __init__(self, name, regionsPyroprintZscores):
 		self.name = name
