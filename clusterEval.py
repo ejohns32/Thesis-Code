@@ -8,6 +8,7 @@ from scipy import stats
 import config
 import pyroprinting
 import dbscan
+import importClusters
 
 
 def getDistributionCorrectnessFunc(expectedDistribution):
@@ -309,29 +310,44 @@ def loadReplicatePearsons(cfg):
 
 if __name__ == '__main__':
 	cfg = config.loadConfig()
+	assert cfg.isolateSubsetSize == "Shared"
 	isolates = pyroprinting.loadIsolates(cfg)
 
 	dbscanClusters = dbscan.getDBscanClusters(isolates, cfg)
+	ohclustClusters = importClusters.getOHClustClusters()
+	agglomerativeClusters = importClusters.getAgglomerativeClusters()
 	replicatePearsons = loadReplicatePearsons(cfg)
 
-	for region in cfg.regions:
-		print("\n{}".format(region))
+	for name, clusters in [("DBSCAN", dbscanClusters), ("OHCLUST", ohclustClusters)]:
+		print("\n\n{}\n".format(name))
 
-		# print(stats.beta.fit(replicatePearsons[region]))
-		betaCorrectnessFunc = getBetaCorrectnessFunc(stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta))
-		distributionCorrectnessFunc = getDistributionCorrectnessFunc(replicatePearsons[region])
-		# betaDistribution = stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta)
-		# pearsonMap = getPearsonMap(isolates, region, cfg)
+		for region in cfg.regions:
+			print("\n\t{}".format(region))
+			print("\t\tdistributionSimilarity: {}".format(distributionSimilarity(clusters, agglomerativeClusters, region)))
 
-		print("\tdistributionCorrectness: {}".format(distributionCorrectness(dbscanClusters, region, distributionCorrectnessFunc)))
-		print("\tbetaDistributionCorrectness: {}".format(distributionCorrectness(dbscanClusters, region, betaCorrectnessFunc)))
-		print("\tindividualClusterDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(dbscanClusters, region, distributionCorrectnessFunc)))
-		print("\tindividualClusterBetaDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(dbscanClusters, region, betaCorrectnessFunc)))
-		print("\tpairedClustersDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(dbscanClusters, region, distributionCorrectnessFunc)))
-		print("\tpairedClustersBetaDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(dbscanClusters, region, betaCorrectnessFunc)))
+		print("\n\tsimilarityIndexes: {}".format(similarityIndexes(isolates, clusters, agglomerativeClusters)))
 
-		# del pearsonMap # the garbage collector should free this now
+	for name, clusters in [("DBSCAN", dbscanClusters), ("OHCLUST", ohclustClusters), ("AGGLOMERATIVE", agglomerativeClusters)]:
+		print("\n\n{}\n".format(name))
 
-	print("\nthresholdCorrectness: {}".format(
-		thresholdCorrectness(isolates, dbscanClusters, cfg.regions)))
+		for region in cfg.regions:
+			print("\n\t{}".format(region))
+
+			# print(stats.beta.fit(replicatePearsons[region]))
+			betaCorrectnessFunc = getBetaCorrectnessFunc(stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta))
+			distributionCorrectnessFunc = getDistributionCorrectnessFunc(replicatePearsons[region])
+			# betaDistribution = stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta)
+			# pearsonMap = getPearsonMap(isolates, region, cfg)
+
+			print("\t\tdistributionCorrectness: {}".format(distributionCorrectness(clusters, region, distributionCorrectnessFunc)))
+			print("\t\tbetaDistributionCorrectness: {}".format(distributionCorrectness(clusters, region, betaCorrectnessFunc)))
+			print("\t\tindividualClusterDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(clusters, region, distributionCorrectnessFunc)))
+			print("\t\tindividualClusterBetaDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(clusters, region, betaCorrectnessFunc)))
+			print("\t\tpairedClustersDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(clusters, region, distributionCorrectnessFunc)))
+			print("\t\tpairedClustersBetaDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(clusters, region, betaCorrectnessFunc)))
+
+			# del pearsonMap # the garbage collector should free this now
+
+		print("\n\tthresholdCorrectness: {}".format(
+			thresholdCorrectness(isolates, clusters, cfg.regions)))
 
