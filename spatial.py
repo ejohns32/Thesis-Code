@@ -53,7 +53,9 @@ class MultiDimPlane:
 		self.recipSqrtNormCoeff = 1/math.sqrt(sum(coeffs[i]**2 for i in range(self.numDims)))
 
 	def valueOf(self, point):
+		#TODO: this could be a zip()
 		#TODO: maybe coeffs of 0 for not dims would be faster?
+		#TODO: maybe using numpy array indexing would be faster?
 		return sum(point[self.dims[i]] * self.coeffs[i] for i in range(self.numDims))
 	# def valueDiff(self, val1, val2):
 	# 	return max(0, (val1 - val2)/self.sqrtCoeffNorm)
@@ -312,7 +314,7 @@ class InnerNode(Node):
 # 		self.dimsPerSplit = dimsPerSplit
 
 
-class Tree:
+class SpatialIndex:
 	def __init__(self, isolates, cfg):
 		# self.treeConfig = treeConfig
 		self.isolates = isolates
@@ -428,7 +430,7 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 
 
 
-def testSpatial(isolates, tree, correctNeighbors, cfg):
+def testSpatial(isolates, index, correctNeighbors, cfg):
 	queryIsolates = set(isolates)
 	queryCount = len(queryIsolates)
 
@@ -439,7 +441,7 @@ def testSpatial(isolates, tree, correctNeighbors, cfg):
 	missingCount = 0
 
 	for i, isolate in enumerate(queryIsolates):
-		resultR = tree.getNeighborsOf(isolate, cfg.radii)
+		resultR = index.getNeighborsOf(isolate, cfg.radii)
 		correctR = correctNeighbors[isolate]
 
 		if len(resultR) > 0:
@@ -464,9 +466,9 @@ def testSpatial(isolates, tree, correctNeighbors, cfg):
 if __name__ == '__main__':
 	cfg = config.loadConfig()
 	isolates = pyroprinting.loadIsolates(cfg)
-	tree = Tree(isolates, cfg)
+	index = SpatialIndex(isolates, cfg)
 	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 
-	testSpatial(isolates, tree, correctNeighbors, cfg)
-	# cProfile.run("testSpatial(isolates, tree, correctNeighbors, cfg)")
+	testSpatial(isolates, index, correctNeighbors, cfg)
+	# cProfile.run("testSpatial(isolates, index, correctNeighbors, cfg)")
 

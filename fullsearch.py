@@ -6,7 +6,7 @@ import config
 import pyroprinting
 
 
-class FullSearcher:
+class FullSearchIndex:
 	def __init__(self, isolates):
 		self.isolates = set(isolates)
 	def __iter__(self):
@@ -38,7 +38,7 @@ class FullSearcher:
 		return result - {queryIsolate}
 
 
-class PrecomputedSearcher:
+class PrecomputedIndex:
 	def __init__(self, neighborMap):
 		self.neighborMap = neighborMap
 

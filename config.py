@@ -22,8 +22,8 @@ class Config:
 		# self.radii = {region: pyroprinting.distFromPearson(self.threshold, region.dispCount) for region in self.regions}
 		# print(self.threshold, tuple((region.name, radius) for region, radius in self.radii.items()))
 
-		self.radii = {region: pyroprinting.distFromPearson(region.pSimThresholdAlpha, region.dispCount) for region in self.regions}
-		# print(tuple((region.name, region.pSimThresholdAlpha, radius) for region, radius in self.radii.items()))
+		self.radii = {region: pyroprinting.distFromPearson(region.clusterThreshold, region.dispCount) for region in self.regions}
+		# print(tuple((region.name, region.clusterThreshold, radius) for region, radius in self.radii.items()))
 
 		self.minNeighbors = decoded["minNeighbors"]
 		self.pointsPerLeaf = decoded["pointsPerLeaf"]

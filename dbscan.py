@@ -41,7 +41,7 @@ def expandCluster(points, radii, minNeighbors, unclassifiedPoints, reachable):
 
 
 
-def myDBscan(points, radii, minNeighbors):
+def popDBSCAN(points, radii, minNeighbors):
 	clusters = []
 
 	unclassifiedPoints = points #TODO: copy spatial tree instead of assuming they are ok with us consuming it
@@ -253,7 +253,7 @@ def printClusters(clusters):
 def computeDBscanClusters(isolates, cfg):
 	print("clustering for a subset of size {}...".format(cfg.isolateSubsetSize))
 	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
-	precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
+	precomputedSearcher = fullsearch.PrecomputedIndex(correctNeighbors)
 	return dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
 
 def getDBscanClustersCacheFileName(cfg):
@@ -278,14 +278,14 @@ if __name__ == '__main__':
 	isolates = pyroprinting.loadIsolates(cfg)
 	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 
-	tree = spatial.Tree(isolates, cfg)
-	# fullSearcher = fullsearch.FullSearcher(isolates)
-	precomputedSearcher = fullsearch.PrecomputedSearcher(correctNeighbors)
+	spatialIndex = spatial.SpatialIndex(isolates, cfg)
+	# fullSearcher = fullsearch.FullSearchIndex(isolates)
+	precomputedSearcher = fullsearch.PrecomputedIndex(correctNeighbors)
 
-	# spatialGetClusters = dbscan(tree, cfg.radii, cfg.minNeighbors)
-	spatialPopClusters = myDBscan(tree, cfg.radii, cfg.minNeighbors)
+	# spatialGetClusters = dbscan(spatialIndex, cfg.radii, cfg.minNeighbors)
+	spatialPopClusters = popDBSCAN(spatialIndex, cfg.radii, cfg.minNeighbors)
 	# fullGetClusters = dbscan(fullSearcher, cfg.radii, cfg.minNeighbors)
-	# fullPopClusters = myDBscan(fullSearcher, cfg.radii, cfg.minNeighbors)
+	# fullPopClusters = popDBSCAN(fullSearcher, cfg.radii, cfg.minNeighbors)
 	preFullClusters = dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
 
 	# spatialGetClusters = {frozenset(cluster) for cluster in spatialGetClusters}
