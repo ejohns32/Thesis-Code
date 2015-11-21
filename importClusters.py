@@ -66,8 +66,8 @@ def loadFromCSV(filename, outfile):
 	with open(outfile, mode='w+b') as cacheFile:
 		pickle.dump(clusters, cacheFile)
 
-def getOHClustClusters():
-	with open("ohclust99.pickle", mode='r+b') as cacheFile:
+def getOHClustClusters(threshold):
+	with open("ohclust{}.pickle".format(threshold), mode='r+b') as cacheFile:
 		ohclustClusters = pickle.load(cacheFile)
 	return ohclustClusters
 

@@ -1,6 +1,7 @@
 import os.path
 import pickle
 import json
+import math
 
 import mysql.connector
 from scipy import stats
@@ -13,13 +14,15 @@ import importClusters
 
 def getDistributionCorrectnessFunc(expectedDistribution):
 	def func(actual):
-		return stats.ks_2samp(actual, expectedDistribution)
+		ksStat, pValue = stats.ks_2samp(actual, expectedDistribution)
+		return ksStat/(math.sqrt((len(actual) + len(expectedDistribution)) / (len(actual) * (len(expectedDistribution))))), pValue
+		# return ksStat, pValue, len(actual), len(expectedDistribution)
 	return func
 
-def getBetaCorrectnessFunc(expectedBeta):
-	def func(actual):
-		return stats.kstest(actual, expectedBeta.cdf)
-	return func
+# def getBetaCorrectnessFunc(expectedBeta):
+# 	def func(actual):
+# 		return stats.kstest(actual, expectedBeta.cdf)
+# 	return func
 
 def getIntraClusterPearsons(cluster, region):
 	pearsons = []
@@ -51,15 +54,20 @@ def getCombinedIntraClusterPearsons(clusters, region):
 	return pearsons
 
 def distributionSimilarity(clusters1, clusters2, region):
-	ksStat, pValue = stats.ks_2samp(getCombinedIntraClusterPearsons(clusters1, region), getCombinedIntraClusterPearsons(clusters2, region))
-	return pValue
+	distribution1 = getCombinedIntraClusterPearsons(clusters1, region)
+	distribution2 = getCombinedIntraClusterPearsons(clusters2, region)
+	ksStat, pValue = stats.ks_2samp(distribution1, distribution2)
+	# return pValue
+	return ksStat/(math.sqrt((len(distribution1) + len(distribution2)) / (len(distribution1) * (len(distribution2))))), pValue
+	# return ksStat, pValue, len(distribution1), len(distribution2)
 
 
 
 def distributionCorrectness(clusters, region, correctnessFunc):
 	ksStat, pValue = correctnessFunc(getCombinedIntraClusterPearsons(clusters, region))
 	# ksStat, pValue = stats.kstest(getCombinedIntraClusterPearsons(clusters, region), betaDistribution.cdf)
-	return pValue
+	# return pValue
+	return ksStat, pValue
 
 # TODO: try looking at average chance in addition to complete chance
 def individualClusterDistributionCorrectness(clusters, region, correctnessFunc):
@@ -73,6 +81,7 @@ def individualClusterDistributionCorrectness(clusters, region, correctnessFunc):
 	totalCount = 0
 	chanceCount = 0
 	averageP = 0.0
+	averageKS = 0.0
 	chanceNoneReject = 1.0
 	for cluster in clusters:
 		if len(cluster) > 1: # otherwise it wont have any pairwise pearsons
@@ -81,11 +90,13 @@ def individualClusterDistributionCorrectness(clusters, region, correctnessFunc):
 			# print(pValue)
 			chanceNoneReject *= pValue
 			averageP += pValue
+			averageKS += ksStat
 			totalCount += 1
 			if pValue >= .1:
 				chanceCount += 1
 
-	return chanceCount/totalCount, averageP/totalCount, chanceNoneReject
+	# return chanceCount/totalCount, averageP/totalCount, chanceNoneReject
+	return chanceCount/totalCount, averageKS/totalCount
 
 # TODO: try looking at average chance in addition to complete chance
 # seems to need large clusters to work
@@ -102,6 +113,7 @@ def pairedClustersDistributionCorrectness(clusters, region, correctnessFunc):
 	totalCount = 0
 	chanceCount = 0
 	averageP = 0.0
+	averageKS = 0.0
 	chanceAllReject = 1.0
 	for i, cluster1 in enumerate(clusters):
 		# print("{}/{}".format(i+1, len(clusters)))
@@ -117,11 +129,13 @@ def pairedClustersDistributionCorrectness(clusters, region, correctnessFunc):
 			# print(cluster2)
 			chanceAllReject *= 1 - pValue
 			averageP += 1 - pValue
+			averageKS += 1 - ksStat
 			totalCount += 1
 			if pValue <= .1:
 				chanceCount += 1
 
-	return chanceCount/totalCount, averageP/totalCount, chanceAllReject
+	# return chanceCount/totalCount, averageP/totalCount, chanceAllReject
+	return chanceCount/totalCount, averageKS/totalCount
 
 
 
@@ -130,14 +144,14 @@ def pairedClustersDistributionCorrectness(clusters, region, correctnessFunc):
 def getClusterMap(clusters):
 	clustersMap = dict()
 
-	for cluster in clusters:
+	for i, cluster in enumerate(clusters):
 		for isolate in cluster:
 			# assert isolate not in clustersMap
 			if isolate in clustersMap:
 				print("\n\tisolate {} in multiple clusters".format(isolate))
 				print(clustersMap[isolate])
 				print(cluster)
-			clustersMap[isolate] = cluster
+			clustersMap[isolate] = i
 
 	return clustersMap
 
@@ -200,9 +214,9 @@ def getPairCounts(isolates, clusters1, clusters2):
 	for i, iso1 in enumerate(isolates):
 		# print("{}/{}".format(i+1, len(isolates)))
 		for iso2 in isolates[i+1:]:
-			sameClust1 = clusterMap1[iso1] == clusterMap1[iso2]
-			sameClust2 = clusterMap2[iso1] == clusterMap2[iso2]
-
+			sameClust1 = iso1 in clusterMap1 and iso2 in clusterMap1 and clusterMap1[iso1] == clusterMap1[iso2]
+			sameClust2 = iso1 in clusterMap2 and iso2 in clusterMap2 and clusterMap2[iso1] == clusterMap2[iso2]
+			
 			if sameClust1 == sameClust2:
 				if sameClust1:
 					bothSame += 1
@@ -308,43 +322,50 @@ def loadReplicatePearsons(cfg):
 # 		return computeRegionPearsonMap(isolates, region)
 
 
+def filterSingletonClusters(clusters):
+	filtered = [cluster for cluster in clusters if len(cluster) > 1]
+	print("{}/{}".format(len(filtered), len(clusters)))
+	return filtered
+
 if __name__ == '__main__':
 	cfg = config.loadConfig()
 	assert cfg.isolateSubsetSize == "Shared"
 	isolates = pyroprinting.loadIsolates(cfg)
 
-	dbscanClusters = dbscan.getDBscanClusters(isolates, cfg)
-	ohclustClusters = importClusters.getOHClustClusters()
-	agglomerativeClusters = importClusters.getAgglomerativeClusters()
+	# dbscanClusters = dbscan.getDBscanClusters(isolates, cfg)
+	ohclustClusters = filterSingletonClusters(importClusters.getOHClustClusters(995))
+	agglomerativeClusters = filterSingletonClusters(importClusters.getAgglomerativeClusters())
 	replicatePearsons = loadReplicatePearsons(cfg)
 
-	for name, clusters in [("DBSCAN", dbscanClusters), ("OHCLUST", ohclustClusters)]:
-		print("\n\n{}\n".format(name))
+	for name, clusters in [("OHCLUST", ohclustClusters)]:
+		print("\n\n{}".format(name))
+		print(len(clusters))
 
 		for region in cfg.regions:
-			print("\n\t{}".format(region))
+			print("\t{}".format(region))
 			print("\t\tdistributionSimilarity: {}".format(distributionSimilarity(clusters, agglomerativeClusters, region)))
 
 		print("\n\tsimilarityIndexes: {}".format(similarityIndexes(isolates, clusters, agglomerativeClusters)))
 
-	for name, clusters in [("DBSCAN", dbscanClusters), ("OHCLUST", ohclustClusters), ("AGGLOMERATIVE", agglomerativeClusters)]:
-		print("\n\n{}\n".format(name))
+	for name, clusters in [("OHCLUST", ohclustClusters)]:
+		print("\n\n{}".format(name))
+		print(len(clusters))
 
 		for region in cfg.regions:
-			print("\n\t{}".format(region))
+			print("\t{}".format(region))
 
 			# print(stats.beta.fit(replicatePearsons[region]))
-			betaCorrectnessFunc = getBetaCorrectnessFunc(stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta))
+			# betaCorrectnessFunc = getBetaCorrectnessFunc(stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta))
 			distributionCorrectnessFunc = getDistributionCorrectnessFunc(replicatePearsons[region])
 			# betaDistribution = stats.beta(region.betaDistributionAlpha, region.betaDistributionBeta)
 			# pearsonMap = getPearsonMap(isolates, region, cfg)
 
 			print("\t\tdistributionCorrectness: {}".format(distributionCorrectness(clusters, region, distributionCorrectnessFunc)))
-			print("\t\tbetaDistributionCorrectness: {}".format(distributionCorrectness(clusters, region, betaCorrectnessFunc)))
+			# print("\t\tbetaDistributionCorrectness: {}".format(distributionCorrectness(clusters, region, betaCorrectnessFunc)))
 			print("\t\tindividualClusterDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(clusters, region, distributionCorrectnessFunc)))
-			print("\t\tindividualClusterBetaDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(clusters, region, betaCorrectnessFunc)))
+			# print("\t\tindividualClusterBetaDistributionCorrectness: {}".format(individualClusterDistributionCorrectness(clusters, region, betaCorrectnessFunc)))
 			print("\t\tpairedClustersDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(clusters, region, distributionCorrectnessFunc)))
-			print("\t\tpairedClustersBetaDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(clusters, region, betaCorrectnessFunc)))
+			# print("\t\tpairedClustersBetaDistributionCorrectness: {}".format(pairedClustersDistributionCorrectness(clusters, region, betaCorrectnessFunc)))
 
 			# del pearsonMap # the garbage collector should free this now
 

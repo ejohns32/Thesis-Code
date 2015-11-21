@@ -1,0 +1,93 @@
+1076/2626 from ohclust werent noise
+1054/2601 from agglomerative werent noise
+
+
+DBSCAN1N.995.995
+495
+	23-5
+		distributionSimilarity: (80.997735435504723, 0.0)
+	16-23
+		distributionSimilarity: (84.866069609390109, 0.0)
+
+	similarityIndexes: (0.9851022221877381, 0.07441701649024846, 0.9850843564735874)
+
+
+OHCLUST.99
+1076
+	23-5
+		distributionSimilarity: (1.3344417250372098, 0.056333948084030673)
+	16-23
+		distributionSimilarity: (2.2321161106922904, 9.1952547690618487e-05)
+
+	similarityIndexes: (0.9991140280349268, 0.46700162074554297, 0.9991133397476855)
+
+
+DBSCAN1N.995.995
+495
+	23-5
+		distributionCorrectness: (28.905180342915454, 0.0)
+		individualClusterDistributionCorrectness: (0.7070707070707071, 1.7823601472231554)
+		pairedClustersDistributionCorrectness: (0.9980779454463665, -2.8558659384587064)
+	16-23
+		distributionCorrectness: (14.078414968098439, 4.7368961371228445e-174)
+		individualClusterDistributionCorrectness: (0.7555555555555555, 1.3476168369289432)
+		pairedClustersDistributionCorrectness: (0.9978898294687768, -2.0775029942181171)
+1
+	thresholdCorrectness: (1.0, 0.9898151707603782, 0.004014649707817297)
+
+
+OHCLUST.99
+1076
+	23-5
+		distributionCorrectness: (5.9607025940267331, 2.0031145985117265e-31)
+		individualClusterDistributionCorrectness: (0.6923791821561338, 1.1316157852332007)
+		pairedClustersDistributionCorrectness: (0.998628857957984, -1.6751088131019372)
+	16-23
+		distributionCorrectness: (3.4518800006248673, 7.2679710168880621e-11)
+		individualClusterDistributionCorrectness: (0.7630111524163569, 1.0503786995138999)
+		pairedClustersDistributionCorrectness: (0.9974652027319098, -1.5065271115223948)
+
+	thresholdCorrectness: (0.32367969457995105, 0.9999825312405977, 0.004014649707817297)
+
+
+AGGLOMERATIVE.99
+1054
+	23-5
+		distributionCorrectness: (6.4092348394913836, 2.894242332331507e-36)
+		individualClusterDistributionCorrectness: (0.6688804554079696, 1.16665821993825)
+		pairedClustersDistributionCorrectness: (0.9988935561358079, -1.7182470195683506)
+	16-23
+		distributionCorrectness: (4.0330966968961857, 1.1220187699457781e-14)
+		individualClusterDistributionCorrectness: (0.7609108159392789, 1.0556773514035447)
+		pairedClustersDistributionCorrectness: (0.9975276205510235, -1.5070694595314036)
+
+	thresholdCorrectness: (0.35643907988353934, 0.9999811207196522, 0.004014649707817297)
+
+
+
+
+
+
+
+OHCLUST995
+1036
+	23-5
+		distributionSimilarity: (2.4643371198866766, 1.0326983101969072e-05)
+	16-23
+		distributionSimilarity: (1.6209670790990736, 0.010316316400456004)
+
+	similarityIndexes: (0.9991061074681892, 0.45540491744082984, 0.9991054387865889)
+
+
+OHCLUST995
+1036
+	23-5
+		distributionCorrectness: (5.5325803410451266, 3.9303323233536337e-27)
+		individualClusterDistributionCorrectness: (0.7104247104247104, 1.1044911345888813)
+		pairedClustersDistributionCorrectness: (0.9982000634174547, -1.6191062102504701)
+	16-23
+		distributionCorrectness: (3.9034433916505336, 8.9394722122324527e-14)
+		individualClusterDistributionCorrectness: (0.777027027027027, 1.0378978848197544)
+		pairedClustersDistributionCorrectness: (0.9969522317348404, -1.468566618533208)
+
+	thresholdCorrectness: (0.31548502786186683, 0.9999839417615431, 0.004014649707817297)

@@ -3,7 +3,7 @@
 		{
 			"name": "23-5",
 			"dispCount": 93,
-			"clusterThreshold": 0.99,
+			"clusterThreshold": 0.995,
 			"pearsonSimilarityThresholdAlpha": 0.995,
 			"pearsonSimilarityThresholdBeta": 0.99,
 			"betaDistributionAlpha": 386.65,
@@ -11,7 +11,7 @@
 		}, {
 			"name": "16-23",
 			"dispCount": 95,
-			"clusterThreshold": 0.99,
+			"clusterThreshold": 0.995,
 			"pearsonSimilarityThresholdAlpha": 0.995,
 			"pearsonSimilarityThresholdBeta": 0.99,
 			"betaDistributionAlpha": 668.1768,
