@@ -60,22 +60,6 @@ def cacheNeighbors(cfg):
 
 
 
-# def cacheRegionsPearsonMap(cfg):
-# 	for region in cfg.regions:
-# 		cacheFileName = clusterEval.getPearsonMapCacheFileName(region, cfg)
-# 		if os.path.isfile(cacheFileName):
-# 			continue
-
-# 		isolates = pyroprinting.loadIsolates(cfg)
-
-# 		print("calculating pairwise pearson correlations for a subset of size {} for region {}...".format(cfg.isolateSubsetSize, region))
-# 		pearsonMap = clusterEval.computePearsonMap(isolates, region)
-
-# 		with open(cacheFileName, mode='w+b') as cacheFile:
-# 			pickle.dump(pearsonMap, cacheFile)
-
-# 		del pearsonMap # the garbage collector should free this now
-
 def cacheReplicatePearsons(cfg):
 	cacheFileName = clusterEval.getReplicatePearsonsCacheFileName(cfg)
 	if os.path.isfile(cacheFileName):
@@ -108,6 +92,5 @@ if __name__ == '__main__':
 	cacheAllIsolates(cfg)
 	cacheIsolateSubset(cfg)
 	cacheNeighbors(cfg)
-	cacheReplicatePearsons(cfg)
-	# cacheRegionsPearsonMap(cfg)
+	# cacheReplicatePearsons(cfg)
 	cacheDBscanClusters(cfg)

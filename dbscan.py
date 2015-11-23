@@ -2,6 +2,7 @@ import collections
 import itertools
 import os.path
 import pickle
+import sys
 
 import config
 import pyroprinting
@@ -257,7 +258,7 @@ def computeDBscanClusters(isolates, cfg):
 	return dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)
 
 def getDBscanClustersCacheFileName(cfg):
-	return "dbscan{}_{}.pickle".format(cfg.isolateSubsetSize, "_".join(str(region.clusterThreshold) for region in cfg.regions))
+	return "dbscan{}_{}_{}.pickle".format(cfg.isolateSubsetSize, "_".join(str(region.clusterThreshold) for region in cfg.regions), cfg.minNeighbors)
 
 def loadDBscanClustersFromFile(cacheFileName):
 	with open(cacheFileName, mode='r+b') as cacheFile:
@@ -273,11 +274,7 @@ def getDBscanClusters(isolates, cfg):
 
 
 
-if __name__ == '__main__':
-	cfg = config.loadConfig()
-	isolates = pyroprinting.loadIsolates(cfg)
-	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
-
+def indexComparison(cfg, isolates, correctNeighbors):
 	spatialIndex = spatial.SpatialIndex(isolates, cfg)
 	# fullSearcher = fullsearch.FullSearchIndex(isolates)
 	precomputedSearcher = fullsearch.PrecomputedIndex(correctNeighbors)
@@ -300,3 +297,25 @@ if __name__ == '__main__':
 	# assert spatialGetClusters == spatialPopClusters
 	# assert fullGetClusters == fullPopClusters
 	# assert verifyClusters(isolates, correctNeighbors, cfg.minNeighbors, clusters)
+
+if __name__ == '__main__':
+	cfg = config.loadConfig()
+	# isolates = pyroprinting.loadIsolates(cfg)
+	isolates = pyroprinting.loadIsolatesFromFile("isolates{}.pickle".format(sys.argv[1]))
+	# correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
+
+	print(sys.argv)
+	if sys.argv[2] == "spatial":
+		index = spatial.SpatialIndex(isolates, cfg)
+	elif sys.argv[2] == "fullsearch":
+		index = fullsearch.FullSearchIndex(isolates)
+	else:
+		print("bad index. use 'spatial' or 'fullsearch'")
+
+	if sys.argv[3] == "dbscan":
+		dbscan(index, cfg.radii, cfg.minNeighbors)
+	elif sys.argv[3] == "popDBSCAN":
+		popDBSCAN(index, cfg.radii, cfg.minNeighbors)
+	else:
+		print("bad method. use 'dbscan' or 'popDBSCAN'")
+	

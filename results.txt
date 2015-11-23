@@ -2,7 +2,7 @@
 1054/2601 from agglomerative werent noise
 
 
-DBSCAN1N.995.995
+DBSCAN.995.995N1
 495
 	23-5
 		distributionSimilarity: (80.997735435504723, 0.0)
@@ -10,6 +10,7 @@ DBSCAN1N.995.995
 		distributionSimilarity: (84.866069609390109, 0.0)
 
 	similarityIndexes: (0.9851022221877381, 0.07441701649024846, 0.9850843564735874)
+	[average jaccard and another: 0.5297506864819179]
 
 
 OHCLUST.99
@@ -20,9 +21,10 @@ OHCLUST.99
 		distributionSimilarity: (2.2321161106922904, 9.1952547690618487e-05)
 
 	similarityIndexes: (0.9991140280349268, 0.46700162074554297, 0.9991133397476855)
+	[average jaccard and another: 0.7330574802466142]
 
 
-DBSCAN1N.995.995
+DBSCAN.995.995N1
 495
 	23-5
 		distributionCorrectness: (28.905180342915454, 0.0)
@@ -34,6 +36,7 @@ DBSCAN1N.995.995
 		pairedClustersDistributionCorrectness: (0.9978898294687768, -2.0775029942181171)
 1
 	thresholdCorrectness: (1.0, 0.9898151707603782, 0.004014649707817297)
+	[average: 0.9949075853801891]
 
 
 OHCLUST.99
@@ -48,6 +51,7 @@ OHCLUST.99
 		pairedClustersDistributionCorrectness: (0.9974652027319098, -1.5065271115223948)
 
 	thresholdCorrectness: (0.32367969457995105, 0.9999825312405977, 0.004014649707817297)
+	[average: 0.6618311129102743]
 
 
 AGGLOMERATIVE.99
@@ -62,6 +66,7 @@ AGGLOMERATIVE.99
 		pairedClustersDistributionCorrectness: (0.9975276205510235, -1.5070694595314036)
 
 	thresholdCorrectness: (0.35643907988353934, 0.9999811207196522, 0.004014649707817297)
+	[average: 0.6782101003015958]
 
 
 
@@ -77,7 +82,7 @@ OHCLUST995
 		distributionSimilarity: (1.6209670790990736, 0.010316316400456004)
 
 	similarityIndexes: (0.9991061074681892, 0.45540491744082984, 0.9991054387865889)
-
+	[average jaccard and another: 0.7272551781137093]
 
 OHCLUST995
 1036
@@ -91,3 +96,34 @@ OHCLUST995
 		pairedClustersDistributionCorrectness: (0.9969522317348404, -1.468566618533208)
 
 	thresholdCorrectness: (0.31548502786186683, 0.9999839417615431, 0.004014649707817297)
+	[average: 0.657734484811705]
+
+
+
+DBSCAN.995.995N3
+162
+	23-5
+		distributionSimilarity: (67.21524156412454, 0.0)
+	16-23
+		distributionSimilarity: (71.538678530073938, 0.0)
+	9 isolates in multiple clusters
+	0 isolates in multiple clusters
+
+	similarityIndexes: (0.9887526874698466, 0.09426905253657775, 0.9887395056262014)
+	[average jaccard and another: 0.5415042790813895]
+
+
+DBSCAN.995.995N3
+162
+	23-5
+		distributionCorrectness: (25.290510546097991, 0.0)
+		individualClusterDistributionCorrectness: (0.21604938271604937, 3.9008416727696185)
+		pairedClustersDistributionCorrectness: (0.9997699562916954, -7.6091961015616958)
+	16-23
+		distributionCorrectness: (10.870564455787312, 6.0811843050712644e-104)
+		individualClusterDistributionCorrectness: (0.4012345679012346, 2.4640504676958424)
+		pairedClustersDistributionCorrectness: (0.9993865501111878, -5.4090113203432546)
+	9 isolates in multiple clusters
+
+	thresholdCorrectness: (0.9898193317008271, 0.993467063739163, 0.004014649707817297)
+	[average: 0.9916431977199951]

@@ -18,7 +18,7 @@
 			"betaDistributionBeta": 1.532336
 		}
 	],
-	"minNeighbors": 1,
+	"minNeighbors": 3,
 	"pointsPerLeaf": 8,
 	"dimsPerSplit": 10,
 	"isolateSubsetSize": "Shared"
