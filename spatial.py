@@ -62,11 +62,19 @@ class MultiDimPlane:
 	def signedValueDist(self, val1, val2):
 		return (val1 - val2)*self.recipSqrtNormCoeff
 
-class PlanePartition:
-	def __init__(self, plane, lowerValue, upperValue):
-		self.plane = plane
-		self.lowerValue = lowerValue
-		self.upperValue = upperValue
+	def __repr__(self):
+		return "\n"+" + ".join("{:.2f}*{}".format(coeff, dim) for dim, coeff in zip(self.dims, self.coeffs))
+
+
+# class BoundedPlane:
+# 	def __init__(self, plane, lowerValue, upperValue):
+# 		self.plane = plane
+# 		self.lowerValue = lowerValue
+# 		self.upperValue = upperValue
+
+# 	def combine(bp1, bp2):
+# 		assert bp1.plane
+# 		return BoundedPlane
 
 	# def distToPoint(self, point):
 	# 	#TODO: don't recalc dimVal for every child
@@ -76,7 +84,59 @@ class PlanePartition:
 	# 	# at least one should always be 0, both if inside
 	# 	return max(lowerDist, upperDist)
 
+class BoundingPlanes:
+	# def __init__(self, boundedPlanes):
+		# self.boundedPlanes = boundedPlanes
+	def __init__(self, planes, lowerCorner, upperCorner):
+		self.planes = planes
+		self.lowerCorner = lowerCorner #numpy.array
+		self.upperCorner = upperCorner #numpy.array
+		self.valDiffToDistScalers = numpy.array([plane.recipSqrtNormCoeff for plane in planes])
+	def combine(bps1, bps2):
+		assert bps1 == bps2
+		# return BoundingPlanes(bps1.planes, [min(lower1, lower2) for lower1, lower2 in zip(bps1.lowerCorner, bps2.lowerCorner)], [max(upper1, upper2) for upper1, upper2 in zip(bps1.upperCorner, bps2.upperCorner)])
+		return BoundingPlanes(bps1.planes, numpy.minimum(bps1.lowerCorner, bps2.lowerCorner), numpy.maximum(bps1.upperCorner, bps2.upperCorner))
+		# return BoundingPlanes(BoundedPlane.combine(bp1, bp2) for bp1, bp2 in zip(bps1, bps2))
+	def combineAll(bpses, planes):
+		combinedLower = numpy.full(len(planes), numpy.finfo(numpy.float64).max)
+		combinedUpper = numpy.full(len(planes), numpy.finfo(numpy.float64).min)
+		# combined = next(bpses)
+		for bps in bpses:
+			assert bps.planes == planes
+			combinedLower = numpy.minimum(combinedLower, bps.lowerCorner)
+			combinedUpper = numpy.maximum(combinedUpper, bps.upperCorner)
 
+		return BoundingPlanes(planes, combinedLower, combinedUpper)
+
+	def bound(points, planes):
+		planesMin = numpy.full(len(planes), numpy.finfo(numpy.float64).max)
+		planesMax = numpy.full(len(planes), numpy.finfo(numpy.float64).min)
+		for point in points:
+			pointValues = numpy.array([plane.valueOf(point) for plane in planes])
+			planesMin = numpy.minimum(planesMin, pointValues)
+			planesMax = numpy.maximum(planesMax, pointValues)
+		return BoundingPlanes(planes, planesMin, planesMax)
+
+	#TODO: verify this
+	def containedByBall(self, pointValues, radius):
+		# TODO: use numpy for dist instead of signedValueDist()
+		# pointLowerDists = numpy.array(plane.signedValueDist(pointVal, lower) for plane, lower, pointVal in zip(self.planes, self.lowerCorner, pointValues))
+		# pointUpperDists = numpy.array(plane.signedValueDist(pointVal, upper) for plane, upper, pointVal in zip(self.planes, self.upperCorner, pointValues))
+		pointLowerDists = (pointValues - self.lowerCorner) * self.valDiffToDistScalers
+		pointUpperDists = (pointValues - self.upperCorner) * self.valDiffToDistScalers
+		return numpy.linalg.norm(numpy.maximum(numpy.absolute(pointLowerDists), numpy.absolute(pointUpperDists))) <= radius
+	def containsPoint(self, pointValues):
+		return numpy.all(numpy.greater_equal(pointValues, self.lowerCorner)) and numpy.all(numpy.less_equal(pointValues, self.upperCorner))
+	#TODO: verify this
+	def distToPoint(self, pointValues):
+		# TODO: use numpy for dist instead of signedValueDist()
+		# pointLowerDists = numpy.array(plane.signedValueDist(lowerOutDist, pointVal) for plane, lowerOutDist, pointVal in zip(self.planes, numpy.maximum(pointValues, self.lowerCorner), pointValues))
+		# pointUpperDists = numpy.array(plane.signedValueDist(pointVal, upperOutDist) for plane, upperOutDist, pointVal in zip(self.planes, numpy.minimum(pointValues, self.upperCorner), pointValues))
+		pointLowerDists = (numpy.maximum(pointValues, self.lowerCorner) - pointValues) * self.valDiffToDistScalers
+		pointUpperDists = (pointValues - numpy.minimum(pointValues, self.upperCorner)) * self.valDiffToDistScalers
+		return numpy.linalg.norm(numpy.maximum(pointLowerDists, pointUpperDists))
+	def intersectsBall(self, pointValues, radius):
+		return self.distToPoint(pointValues) <= radius
 
 
 
@@ -169,7 +229,42 @@ class PlanePartitionFilter(SpatialFilter):
 
 		return self.queryDist <= radii[self.region]
 
+class BoundingPlanesFilter(SpatialFilter):
+	def __init__(self, region, children, boundingPlanes):
+		SpatialFilter.__init__(self, region, children)
+		self.boundingPlanes = boundingPlanes
 
+	def fromIsolatesAndPlanes(region, isolates, planes):
+		boundingPlanes = BoundingPlanes.bound((isolate.regionsPyroprintZscores[region] for isolate in isolates), planes)
+		return BoundingPlanesFilter(region, set(), boundingPlanes)
+
+	def fromChildrenFiltersAndPlanes(region, chidlrenFilters, planes):
+		boundingPlanes = BoundingPlanes.combineAll((child.boundingPlanes for child in chidlrenFilters), planes)
+		return BoundingPlanesFilter(region, chidlrenFilters, boundingPlanes)
+
+	def update(self, isolates):
+		self.boundingPlanes = BoundingPlanes.bound((isolate.regionsPyroprintZscores[self.region] for isolate in isolates), self.boundingPlanes.planes)
+
+	def aggregate(self):
+		self.boundingPlanes = BoundingPlanes.combineAll((child.boundingPlanes for child in self.children), self.boundingPlanes.planes)
+
+
+	# TODO: fix double grab for parent or double pointValues computation at top
+	def containedByQuery(self, queryIsolate, radii):
+		point = queryIsolate.regionsPyroprintZscores[self.region]
+		if self.parent is None:
+			self.pointValues = numpy.array([plane.valueOf(point) for plane in self.boundingPlanes.planes])
+		else:
+			self.pointValues = self.parent.pointValues
+		return self.boundingPlanes.containedByBall(qself.pointValues, radii[self.region])
+
+	def intersectsQuery(self, queryIsolate, radii):
+		point = queryIsolate.regionsPyroprintZscores[self.region]
+		if self.parent is None:
+			self.pointValues = numpy.array([plane.valueOf(point) for plane in self.boundingPlanes.planes])
+		else:
+			self.pointValues = self.parent.pointValues
+		return self.boundingPlanes.intersectsBall(self.pointValues, radii[self.region])
 
 
 
@@ -318,11 +413,7 @@ class SpatialIndex:
 	def __init__(self, isolates, cfg):
 		# self.treeConfig = treeConfig
 		self.isolates = isolates
-
-		regionsAllDims = {region: range(region.dispCount) for region in cfg.regions}
-		dummyRegionsIsLeftOfParentSplit = tuple(None for region in cfg.regions)
-		dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
-		self.root = splitMultiRegionCorrelatedDims(isolates, cfg, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
+		self.root = splitConsistentMultiRegionCorrelatedDims(isolates, cfg)
 
 	def __iter__(self):
 		return iter(self.isolates)
@@ -351,8 +442,15 @@ class SpatialIndex:
 			return set()
 
 
-#TODO: verify dims not reused
-def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLeftOfParentSplit, parentFilterCollector, depth):
+def splitMultiRegionCorrelatedDims(isolates, cfg):
+	regionsAllDims = {region: range(region.dispCount) for region in cfg.regions}
+	dummyRegionsIsLeftOfParentSplit = tuple(None for region in cfg.regions)
+	dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (BoundingBoxFilter,)}
+	# dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+	return splitMultiRegionCorrelatedDimsRecurse(isolates, cfg, regionsAllDims, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
+
+# sorry about this function :(
+def splitMultiRegionCorrelatedDimsRecurse(isolates, cfg, regionsUnusedDims, regionsIsLeftOfParentSplit, parentFilterCollector, depth):
 	if len(isolates) <= cfg.pointsPerLeaf:
 		spatialFilters = []
 		for region in cfg.regions:
@@ -360,10 +458,10 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 			spatialFilters.append(bboxFilter)
 			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
 
-		for region, isLeft in zip(cfg.regions, regionsIsLeftOfParentSplit):
-			planeFilter = PlanePartitionFilter.fromSide(region, isLeft)
-			spatialFilters.append(planeFilter)
-			parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
+		# for region, isLeft in zip(cfg.regions, regionsIsLeftOfParentSplit):
+		# 	planeFilter = PlanePartitionFilter.fromSide(region, isLeft)
+		# 	spatialFilters.append(planeFilter)
+		# 	parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
 
 		return LeafNode(spatialFilters, isolates)
 	else:
@@ -405,17 +503,18 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 
 		children = []
 
-		childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+		childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (BoundingBoxFilter,)}
+		# childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
 
 		childrenRegionsUnusedDims = {region: [dim for dim in regionsUnusedDims[region] if dim not in splitPlane.dims] for region, splitPlane in zip(cfg.regions, regionsSplitPlane)}
 		for truth in truthTable:
-			children.append(splitMultiRegionCorrelatedDims(childrenIsolates[truth], cfg, childrenRegionsUnusedDims, truth, childFilterCollector, depth+1))
+			children.append(splitMultiRegionCorrelatedDimsRecurse(childrenIsolates[truth], cfg, childrenRegionsUnusedDims, truth, childFilterCollector, depth+1))
 
-		planeFilters = []
-		for region, splitPlane, splitValue, isLeft in zip(cfg.regions, regionsSplitPlane, regionsSplitValue, regionsIsLeftOfParentSplit):
-			planeFilter = PlanePartitionFilter.fromSplitPlane(region, childFilterCollector[PlanePartitionFilter, region], splitPlane, splitValue, isLeft)
-			planeFilters.append(planeFilter)
-			parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
+		# planeFilters = []
+		# for region, splitPlane, splitValue, isLeft in zip(cfg.regions, regionsSplitPlane, regionsSplitValue, regionsIsLeftOfParentSplit):
+		# 	planeFilter = PlanePartitionFilter.fromSplitPlane(region, childFilterCollector[PlanePartitionFilter, region], splitPlane, splitValue, isLeft)
+		# 	planeFilters.append(planeFilter)
+		# 	parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
 
 		bboxFilters = []
 		for region in cfg.regions:
@@ -423,15 +522,131 @@ def splitMultiRegionCorrelatedDims(isolates, cfg, regionsUnusedDims, regionsIsLe
 			bboxFilters.append(bboxFilter)
 			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
 
-		spatialFilters = planeFilters + bboxFilters if depth <= 2 else bboxFilters + planeFilters
+		# spatialFilters = planeFilters + bboxFilters if depth <= 2 else bboxFilters + planeFilters
+		spatialFilters = bboxFilters
 
 		return InnerNode(spatialFilters, children)
 
 
 
 
+def splitConsistentMultiRegionCorrelatedDims(isolates, cfg):
+	# dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (BoundingPlanesFilter,)}
+	dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (BoundingBoxFilter,)}
+	# dummyFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+	dummyRegionsIsLeftOfParentSplit = tuple(None for region in cfg.regions)
+
+	regionsSplitPlanes = []
+	for region in cfg.regions:
+		dimSum = sum((isolate.regionsPyroprintZscores[region] for isolate in isolates), numpy.zeros(region.dispCount))
+		dimAvg = dimSum / len(isolates)
+		dimDevSum = sum(((dimAvg-isolate.regionsPyroprintZscores[region]) ** 2 for isolate in isolates), numpy.zeros(region.dispCount))
+		dimStdDev = numpy.sqrt(dimDevSum / len(isolates))
+		
+
+		unusedDims = range(region.dispCount)
+		splitPlanes = []
+		while len(unusedDims) > 0:
+			mainDim = max(unusedDims, key=lambda dim: dimStdDev[dim])
+			# mainDim = max(range(dispCount), key=lambda dim: dimStdDev[dim])
+			correlations = numpy.divide(sum(isolate.regionsPyroprintZscores[region] * isolate.regionsPyroprintZscores[region][mainDim] for isolate in isolates) - dimSum * dimSum[mainDim] / len(isolates), ((len(isolates) - 1) * dimStdDev * dimStdDev[mainDim]))
+
+			splitDims = sorted(unusedDims, key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:cfg.dimsPerSplit]
+			# splitDims = sorted(range(dispCount), key=lambda dim: dimStdDev[dim] * abs(correlations[dim]), reverse=True)[:cfg.dimsPerSplit]
+
+			dimCoeffs = [1.0] * len(splitDims)
+
+			for i in range(1, len(splitDims)):
+				dimCoeffs[i] = correlations[splitDims[i]] * dimStdDev[splitDims[0]] / dimStdDev[splitDims[i]]
+
+
+			splitPlanes.append(MultiDimPlane(splitDims, dimCoeffs))
+			unusedDims = list(set(unusedDims) - set(splitDims))
+
+		regionsSplitPlanes.append(splitPlanes)
+
+	# print(regionsSplitPlanes)
+
+	return splitConsistentMultiRegionCorrelatedDimsRecurse(isolates, cfg, regionsSplitPlanes, dummyRegionsIsLeftOfParentSplit, dummyFilterCollector, 0)
+
+# sorry about this function :(
+def splitConsistentMultiRegionCorrelatedDimsRecurse(isolates, cfg, regionsSplitPlanes, regionsIsLeftOfParentSplit, parentFilterCollector, depth):
+	if len(isolates) <= cfg.pointsPerLeaf:
+		spatialFilters = []
+
+		# for region, splitPlanes in zip(cfg.regions, regionsSplitPlanes):
+		# 	planeFilter = BoundingPlanesFilter.fromIsolatesAndPlanes(region, isolates, splitPlanes)
+		# 	spatialFilters.append(planeFilter)
+		# 	parentFilterCollector[BoundingPlanesFilter, region].append(planeFilter)
+
+		for region in cfg.regions:
+			bboxFilter = BoundingBoxFilter.fromIsolates(region, isolates)
+			spatialFilters.append(bboxFilter)
+			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
+
+		# for region, isLeft in zip(cfg.regions, regionsIsLeftOfParentSplit):
+		# 	planeFilter = PlanePartitionFilter.fromSide(region, isLeft)
+		# 	spatialFilters.append(planeFilter)
+		# 	parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
+
+		return LeafNode(spatialFilters, isolates)
+	else:
+		truthTable = [tuple(reversed(truth)) for truth in itertools.product((True, False), repeat=len(cfg.regions))]
+		# print(truthTable)
+		childrenIsolates = {truth: [] for truth in truthTable}
+
+		regionsSplitPlane = []
+		regionsSplitValue = []
+		for region, splitPlanes in zip(cfg.regions, regionsSplitPlanes):
+			splitPlane = splitPlanes[depth % len(splitPlanes)]
+			isolates.sort(key=lambda isolate: splitPlane.valueOf(isolate.regionsPyroprintZscores[region]))
+			splitValue = (splitPlane.valueOf(isolates[len(isolates)//2].regionsPyroprintZscores[region]) + splitPlane.valueOf(isolates[len(isolates)//2 + 1].regionsPyroprintZscores[region])) / 2
+
+			regionsSplitPlane.append(splitPlane)
+			regionsSplitValue.append(splitValue)
+
+		# TODO: combine with sort and take slices (or denote the range somehow ) instead of copying
+		for isolate in isolates:
+			truth = tuple(bool(splitPlane.valueOf(isolate.regionsPyroprintZscores[region]) < splitValue) for region, splitPlane, splitValue in zip(cfg.regions, regionsSplitPlane, regionsSplitValue))
+			childrenIsolates[truth].append(isolate)
+
+		children = []
+
+		# childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (BoundingPlanesFilter,)}
+		childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (BoundingBoxFilter,)}
+		# childFilterCollector = {(filterType, region): [] for region in cfg.regions for filterType in (PlanePartitionFilter, BoundingBoxFilter)}
+
+		for truth in truthTable:
+			children.append(splitConsistentMultiRegionCorrelatedDimsRecurse(childrenIsolates[truth], cfg, regionsSplitPlanes, truth, childFilterCollector, depth+1))
+
+		# spatialFilters = []
+		# for region, splitPlanes in zip(cfg.regions, regionsSplitPlanes):
+		# 	planeFilter = BoundingPlanesFilter.fromChildrenFiltersAndPlanes(region, childFilterCollector[BoundingPlanesFilter, region], splitPlanes)
+		# 	spatialFilters.append(planeFilter)
+		# 	parentFilterCollector[BoundingPlanesFilter, region].append(planeFilter)
+
+
+		# planeFilters = []
+		# for region, splitPlane, splitValue, isLeft in zip(cfg.regions, regionsSplitPlane, regionsSplitValue, regionsIsLeftOfParentSplit):
+		# 	planeFilter = PlanePartitionFilter.fromSplitPlane(region, childFilterCollector[PlanePartitionFilter, region], splitPlane, splitValue, isLeft)
+		# 	planeFilters.append(planeFilter)
+		# 	parentFilterCollector[PlanePartitionFilter, region].append(planeFilter)
+
+		bboxFilters = []
+		for region in cfg.regions:
+			bboxFilter = BoundingBoxFilter.fromChildrenFilters(region, childFilterCollector[BoundingBoxFilter, region])
+			bboxFilters.append(bboxFilter)
+			parentFilterCollector[BoundingBoxFilter, region].append(bboxFilter)
+
+		# spatialFilters = planeFilters + bboxFilters if depth <= 2 else bboxFilters + planeFilters
+		spatialFilters = bboxFilters
+
+		return InnerNode(spatialFilters, children)
+
+
+
 def testSpatial(isolates, index, correctNeighbors, cfg):
-	queryIsolates = set(isolates)
+	queryIsolates = list(isolates)
 	queryCount = len(queryIsolates)
 
 	correctCount = 0
@@ -439,19 +654,23 @@ def testSpatial(isolates, index, correctNeighbors, cfg):
 	nonZeroCount = 0
 	extraCount = 0
 	missingCount = 0
+	seen = set()
 
 	for i, isolate in enumerate(queryIsolates):
 		resultR = index.getNeighborsOf(isolate, cfg.radii)
 		correctR = correctNeighbors[isolate]
+		# seen |= {isolate}
+		# correctR -= seen
+		# seen |= correctR
 
 		if len(resultR) > 0:
 			nonZeroCount += 1
 		extraCount += len(resultR - correctR)
 		missingCount += len(correctR - resultR)
 
-		# print("{}/{} - {}".format(i, len(queryIsolates), isolate))
-		print("{}/{} - {} - {}:{}".format(i+1, len(queryIsolates), isolate, len(resultR), len(correctR)))
-		# print("\t{} --- {} / {} : {} / {}".format(isolate, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
+		# # print("{}/{} - {}".format(i, len(queryIsolates), isolate))
+		# print("{}/{} - {} - {}:{}".format(i+1, len(queryIsolates), isolate, len(resultR), len(correctR)))
+		# # print("\t{} --- {} / {} : {} / {}".format(isolate, len(resultR - correctR), len(resultR), len(correctR - resultR), len(correctR)))
 		if resultR == correctR:
 			correctCount += 1
 			if len(resultR) > 0:
@@ -469,6 +688,6 @@ if __name__ == '__main__':
 	index = SpatialIndex(isolates, cfg)
 	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 
-	testSpatial(isolates, index, correctNeighbors, cfg)
-	# cProfile.run("testSpatial(isolates, index, correctNeighbors, cfg)")
+	# testSpatial(isolates, index, correctNeighbors, cfg)
+	cProfile.run("testSpatial(isolates, index, correctNeighbors, cfg)")
 
