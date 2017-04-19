@@ -36,17 +36,17 @@ class Region:
 			decodedJSON["betaDistributionAlpha"],
 			decodedJSON["betaDistributionBeta"])
 
-	def __repr__(self):
-		return self.name
+#	def __repr__(self):
+#		return self.name
 
 	def __eq__(self, other):
-		return self.index == other.index
+		return self.name == other.name
 
 	def __ne__(self, other):
 		return not self.__eq__(other)
 
 	def __hash__(self):
-		return self.index
+		return hash(self.name)
 
 def pearsonFromDist(dist, dispCount):
 	return 1 - dist**2 / (2*dispCount)
@@ -131,6 +131,7 @@ def loadIsolatesFromDB(cfg):
 			assert len(data[isoID][region.name]) == region.dispCount
 
 	for isoID in toDelete:
+		print("Deleting {}", isoID);
 		del data[isoID]
 
 	print("{}/{} isolates had pyroprints for all regions".format(len(data), len(data) + len(toDelete)))

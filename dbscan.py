@@ -252,7 +252,7 @@ def printClusters(clusters):
 
 
 def computeDBscanClusters(isolates, cfg):
-	print("clustering for a subset of size {}...".format(cfg.isolateSubsetSize))
+	print("clustering for a subset of size {} neighbors {}...".format(cfg.isolateSubsetSize, cfg.minNeighbors))
 	correctNeighbors = fullsearch.getNeighborsMap(isolates, cfg)
 	precomputedSearcher = fullsearch.PrecomputedIndex(correctNeighbors)
 	return dbscan(precomputedSearcher, cfg.radii, cfg.minNeighbors)

@@ -1,0 +1,41 @@
+\begin{table}[ht!]
+\setlength{\arrayrulewidth}{1pt}
+\newcolumntype{n}{>{\columncolor{cyan}}r}
+\newcolumntype{p}{>{\columncolor{cpgreen}}>{\color{white}}r}
+\newcolumntype{h}{>{\columncolor{cpgreengold}}r}
+\newcolumntype{m}{>{\columncolor{cpgold}}r}
+\centering
+\begin{tabular}{|r|m|h|p|n|r|}
+\hline
+\bf \minneigh{} & \bf Misses & \bf Hits & \bf Pure Points & \bf Noise & \bf Total
+\\
+\hline
+\hline
+\bf 1 & 493 & 1155 & 1713 & 1249 & 4610
+\\
+\hline
+\bf 2 & 482 & 1144 & 1341 & 1643 & 4610
+\\
+\hline
+\bf 3 & 410 & 1117 & 1206 & 1877 & 4610
+\\
+\hline
+\bf 4 & 379 & 1088 & 1063 & 2080 & 4610
+\\
+\hline
+\bf 5 & 361 & 1053 & 990 & 2206 & 4610
+\\
+\hline
+\bf 6 & 343 & 1015 & 966 & 2286 & 4610
+\\
+\hline
+\bf 7 & 322 & 952 & 962 & 2374 & 4610
+\\
+\hline
+\bf 8 & 300 & 919 & 926 & 2465 & 4610
+\\
+\hline
+\end{tabular}
+\caption{The number of \isols{} that ended up in clusters where their \spec{} is the minority (Misses), the dominant (Hits), and make up the entirety of the cluster (Pure Points) or were categorized as Noise.}
+\label{tab:coverage:values}
+\end{table}

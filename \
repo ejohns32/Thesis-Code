@@ -1,0 +1,151 @@
+#! /usr/bin/python3
+
+import mysql
+import pickle
+import sys
+import json
+from json import JSONEncoder
+
+import collections
+from collections import Counter
+from collections import defaultdict
+import os
+from os import path
+
+sys.path.append(os.getcwd())
+import config
+import fullsearch
+import clusterEval
+import dbscan
+import pyroprinting
+from pyroprinting import Isolate
+
+class ClusterPurity(object):
+   def __init__(self, cluster, map):
+      self.cluster = [c for c in cluster]
+      self.size = len(cluster)
+      self.counts = defaultdict(int)
+      for c in cluster:
+         self.counts[map[c]] += 1
+   def __str__(self):
+      return self.counts.__str__()
+"""
+   Reads in an Isolate's pickling in the way cachethings.py does and returns
+   the isolates object initially pickled.
+"""
+def get_isolates(cfg):
+   isolates = None
+   isolates = pyroprinting.loadIsolates(cfg)
+   assert(isolates)
+   return isolates
+
+"""
+   Reads in a dbscan pickling and returns the resulting clusters object
+   initially pickled.
+"""
+def get_clusters(cfg):
+   clusters = None
+   dbscan_filename = dbscan.getDBscanClustersCacheFileName(cfg)
+   with open(dbscan_filename, 'r+b') as file:
+      clusters = pickle.load(file)
+   assert(clusters)
+   return clusters
+
+"""
+   Queries the CPLOP database to get a table of the isoID's and commonName for
+   its host species and builds a dictionary that maps isoID's to commonName's.
+"""
+isolate_species_query = \
+' \
+SELECT \
+    iso.isoID, \
+    iso.commonName \
+    FROM \
+        Isolates as iso \
+;'
+known_empty_isolates = {
+      'Ck-001': 'Chicken',
+      'Ck-002': 'Chicken',
+      'Ck-003': 'Chicken',
+      'Ck-004': 'Chicken',
+      'Ck-005': 'Chicken',
+      'CW-1868': 'Cow',
+      'Hu-077': 'Human',
+      'Hu-078': 'Human'
+      }
+remap = {
+      'Cw' : 'Cow',
+      'Dg' : 'Dog',
+      'Hu' : 'Human',
+      'Neonatal Human' : 'Human',
+      'Human UTI' : 'Human',
+      'Barn Owl' : 'Owl',
+      'Long-eared Owl' : 'Owl',
+      'Wild Pig' : 'Pig',
+      'Pig/Swine' : 'Pig',
+      'Bond tail Pigeon' : 'Pigeon'
+      }
+def get_isolate_species(cnx):
+   isolate_species = {}
+   # Map known empty isolates
+   for iso_id, common_name in known_empty_isolates.items():
+      print("{}: {} (EMPTY)".format(iso_id, common_name))
+      isolate_species[Isolate(iso_id, None)] = common_name
+   # Query DB for Isolate:CommonName
+   cursor = cnx.cursor()
+   cursor.execute(isolate_species_query)
+   for (iso_id, common_name) in cursor:
+      if common_name in remap:   # Replace with known mappings
+         common_name = remap[common_name]
+      print("{}: {}".format(iso_id, common_name))
+      isolate_species[Isolate(iso_id, None)] = common_name
+   return isolate_species
+
+def calc_strain_purity(clusters, iso_map):
+   purities = [ClusterPurity(c, iso_map) for c in clusters]
+   return purities
+
+class ClusterJSONEncoder(JSONEncoder):
+   def default(self, obj):
+      if isinstance(obj, set):
+         return JSONEncoder.default(self, [x for x in obj])
+      elif isinstance(obj, Isolate):
+         fuck = dict()
+         fuck['name'] = str(obj.name)
+         print(type(obj))
+         print(type(obj.name))
+         print(type(fuck))
+         return JSONEncoder.default(self, fuck)
+      return JSONEncoder.default(self, obj)
+
+def main():
+   # CONFIG AND DB LOADING
+   cfg = config.loadConfig()
+   db_cfg = None
+   with open("mysqlConfig.json", mode='r') as file:
+      db_cfg = json.load(file)
+   assert(cfg)
+   assert(db_cfg)
+   db_cnx = mysql.connector.connect(**db_cfg)
+
+   # SERIALIZED FILE LOAD
+   isolates = get_isolates(cfg)
+   clusters = get_clusters(cfg)
+   iso_map = get_isolate_species(db_cnx)
+   purities = calc_strain_purity(clusters, iso_map)
+   for i in isolates:
+      print('Isolate: {}'.format(i))
+   for c in clusters:
+      print('Cluster: {}'.format(c))
+   for p in purities:
+      print(json.dumps(p.__dict__, cls=ClusterJSONEncoder))
+   print('----------------------')
+   print('Number of Isolates: {}'.format(len(isolates)))
+   print('Number of Clusters: {}'.format(len(clusters)))
+   print('Number of Purities: {}'.format(len(purities)))
+   print('----------------------')
+   return 0
+
+if __name__ == '__main__':
+   rtn = main()
+   sys.exit(rtn)

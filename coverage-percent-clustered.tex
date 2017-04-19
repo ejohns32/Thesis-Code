@@ -1,0 +1,41 @@
+\begin{table}[ht!]
+\setlength{\arrayrulewidth}{1pt}
+\newcolumntype{n}{>{\columncolor{cyan}}r}
+\newcolumntype{p}{>{\columncolor{cpgreen}}>{\color{white}}r}
+\newcolumntype{h}{>{\columncolor{cpgreengold}}r}
+\newcolumntype{m}{>{\columncolor{cpgold}}r}
+\centering
+\begin{tabular}{|r|m|h|p|r|}
+\hline
+\bf \minneigh{}&\bf Misses (\%)&\bf Hits (\%)&\bf Pure Points (\%)&\bf Clustered \Isols{}
+\\
+\hline
+\hline
+\bf 1&14.7&34.4&51.0&3361
+\\
+\hline
+\bf 2&16.2&38.6&45.2&2967
+\\
+\hline
+\bf 3&15.0&40.9&44.1&2733
+\\
+\hline
+\bf 4&15.0&43.0&42.0&2530
+\\
+\hline
+\bf 5&15.0&43.8&41.2&2404
+\\
+\hline
+\bf 6&14.8&43.7&41.6&2324
+\\
+\hline
+\bf 7&14.4&42.6&43.0&2236
+\\
+\hline
+\bf 8&14.0&42.8&43.2&2145
+\\
+\hline
+\end{tabular}
+\caption{The percent of \isols{} clustered that ended up in a cluster where their \spec{} is the minority (Misses), the dominant (Hits), and make up the entirety of the cluster (Pure Points).}
+\label{tab:coverage:percent:clustered}
+\end{table}

@@ -1,0 +1,39 @@
+\begin{table}[ht!]
+\newcolumntype{n}{>{\columncolor{cyan}}r}
+\newcolumntype{p}{>{\columncolor{cpgreen}}>{\color{white}}r}
+\newcolumntype{h}{>{\columncolor{cpgreengold}}r}
+\newcolumntype{m}{>{\columncolor{cpgold}}r}
+\centering
+\begin{tabular}{|r|m|h|p|n|r|}
+\hline
+\bf \minneigh{} & \bf Misses (%) & \bf Hits (%) & \bf Pure Points (%) & \bf Noise (%) & \bf All \Isols{}
+\\
+\hline
+\hline
+\bf 1 & 10 & 25 & 37 & 27 & 4610
+\\
+\hline
+\bf 2 & 10 & 24 & 29 & 35 & 4610
+\\
+\hline
+\bf 3 & 8 & 24 & 26 & 40 & 4610
+\\
+\hline
+\bf 4 & 8 & 23 & 23 & 45 & 4610
+\\
+\hline
+\bf 5 & 7 & 22 & 21 & 47 & 4610
+\\
+\hline
+\bf 6 & 7 & 22 & 20 & 49 & 4610
+\\
+\hline
+\bf 7 & 6 & 20 & 20 & 51 & 4610
+\\
+\hline
+\bf 8 & 6 & 19 & 20 & 53 & 4610
+\\
+\hline
+\end{tabular}
+\label{tab:coverage:values}
+\caption{The percentage of all \isols{} that ended up in clusters where their \spec{} is the minority (Misses), the majority (Hits), and make up the entirety of the cluster (Pure Points) or were categorized as Noise.}
